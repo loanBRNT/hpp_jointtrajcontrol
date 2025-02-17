@@ -67,4 +67,5 @@
     <disable_collisions link1="fer_link6" link2="fer_link7" reason="Adjacent"/>
     <disable_collisions link1="fer_link6" link2="fer_rightfinger" reason="Never"/>
     <disable_collisions link1="fer_link7" link2="fer_rightfinger" reason="Never"/>
+
 </robot>
