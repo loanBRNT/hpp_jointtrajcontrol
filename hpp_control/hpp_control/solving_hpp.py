@@ -104,7 +104,9 @@ class HPPSimple(Node):
         self.ps.addPathOptimizer('RandomShortcut')
         self.ps.addPathOptimizer('SimpleTimeParameterization')
 
-        self.ps.setParameter('SimpleTimeParameterization/safety',0.5)
+        ps.setParameter('SimpleTimeParameterization/order', 2)
+        ps.setParameter('SimpleTimeParameterization/safety',0.5)
+        ps.setParameter('SimpleTimeParameterization/maxAcceleration',0.5)
         
 
         self.cg = ConstraintGraph(self.robot,"manipulation") #Une fonction pour reset les graphes
