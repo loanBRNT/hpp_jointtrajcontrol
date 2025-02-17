@@ -44,7 +44,12 @@ robot.client.manipulation.robot.addGripper\
 
 # Initialization.
 ps.selectPathPlanner('StatesPathFinder')
+ps.addPathOptimizer('SimpleTimeParameterization')
 ps.addPathOptimizer('SimpleShortcut')
+ps.addPathOptimizer('RandomShortcut')
+
+ps.setParameter('SimpleTimeParameterization/safety',0.5)
+#ps.setParameter('SimpleTimeParameterization/maxAcceleration',1.0)
 
 # if ps.loadPlugin('manipulation-spline-gradient-based.so') :
 #     ps.addPathOptimizer('SplineGradientBased_bezier1')
@@ -65,7 +70,7 @@ q_init = robot.getCurrentConfig()
 q_init[0:9] = [ 0.0011392894365677708, -0.785233599521887, 0.0006221224673022915, -2.373483112932502, 
                 0.003281429835572088, 1.559707000546985, 0.7660253966665929, 0.035, 0.035]
 q_goal = q_init[::]
-q_goal[0] = 0.5
+q_goal[0] = 1.5
 
 # rank = robot.rankInConfiguration["box1/root_joint"]
 # q_init[rank : rank + 3] = [-2.5, -3.75, 0.746]
