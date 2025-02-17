@@ -1,0 +1,4 @@
+int32 path_id
+int32 derivative_indice # Can be 0 (default), 1 cubic and 2 quintic
+---
+bool sucess
