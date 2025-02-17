@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <robot name="fer">
+    <contact name="top">
+        <link name="support_link"/>
+        <point>
+        +0.8515 +0.4015 0.76
+        +0.8515 -0.4015 0.76
+        -0.8515 -0.4015 0.76
+        -0.8515 +0.4015 0.76
+        </point>
+        <shape>
+        4 3 2 1 0
+        </shape>
+  </contact>
     <group name="arm">
         <joint name="fer_joint1"/>
         <joint name="fer_joint2"/>

@@ -6,6 +6,7 @@ from math import sqrt
 from hpp.corbaserver import loadServerPlugin
 from hpp.corbaserver.manipulation import (
     Client,
+    Constraints,
     ConstraintGraph,
     ConstraintGraphFactory,
     ProblemSolver,
@@ -18,7 +19,14 @@ from hpp.gepetto.manipulation import ViewerFactory
 
 BOX_RANGE = [-2.65, -4.4, -2.15, -3.75] #TOP LEFT BOTTOM RIGHT
 
-ARM_ID = 'fr3'
+ARM_ID = 'fer'
+
+class Box:
+    rootJointType = "freeflyer"
+    packageName = "hpp_tutorial"
+    urdfName = "box"
+    urdfSuffix = ""
+    srdfSuffix = ""
 
 
 loadServerPlugin("corbaserver", "manipulation-corba.so")
@@ -30,26 +38,30 @@ Robot.urdfFilename = f"/ros2_ws/src/hpp_control/urdf/{ARM_ID}.urdf"
 Robot.srdfFilename = f"/ros2_ws/src/hpp_control/srdf/{ARM_ID}.srdf"
 
 robot = Robot("robot", "panda", rootJointType="anchor")
-#robot.setRootJointPosition("panda", [-2.379, -4.19, 0.733, 0,0,0,1])
+
 ps = ProblemSolver(robot)
 # ViewerFactory is a class that generates Viewer on the go. It means you can
 # restart the server and regenerate a new windows.
 # To generate a window:
 # vf.createViewer ()
 vf = ViewerFactory(ps)
+vf.loadObjectModel(Box, "box1")
 
 # Add gripper
 robot.client.manipulation.robot.addGripper\
     (f"panda/{ARM_ID}_hand_tcp", 'panda/gripper', [0,0,0,sqrt(2)/2,0,sqrt(2)/2,0], 0.1)
 
+# Set bounds for the box
+robot.setJointBounds('box1/root_joint', [-1., 1., -1., 1., 0., 1.8])
 # Initialization.
-ps.selectPathPlanner('StatesPathFinder')
-ps.addPathOptimizer('SimpleTimeParameterization')
+#ps.selectPathPlanner('StatesPathFinder')
 ps.addPathOptimizer('SimpleShortcut')
 ps.addPathOptimizer('RandomShortcut')
+ps.addPathOptimizer('SimpleTimeParameterization')
 
-ps.setParameter('SimpleTimeParameterization/safety',0.5)
-#ps.setParameter('SimpleTimeParameterization/maxAcceleration',1.0)
+ps.setParameter('SimpleTimeParameterization/order', 2)
+ps.setParameter('SimpleTimeParameterization/safety',0.3)
+ps.setParameter('SimpleTimeParameterization/maxAcceleration',0.5)
 
 # if ps.loadPlugin('manipulation-spline-gradient-based.so') :
 #     ps.addPathOptimizer('SplineGradientBased_bezier1')
@@ -72,13 +84,13 @@ q_init[0:9] = [ 0.0011392894365677708, -0.785233599521887, 0.0006221224673022915
 q_goal = q_init[::]
 q_goal[0] = 1.5
 
-# rank = robot.rankInConfiguration["box1/root_joint"]
-# q_init[rank : rank + 3] = [-2.5, -3.75, 0.746]
-# q_goal[rank : rank + 3] = [-2.5, -4.5, 0.746]
+rank = robot.rankInConfiguration["box1/root_joint"]
+q_init[rank : rank + 3] = [-0.1, -0.1, 0.776]
+q_goal[rank : rank + 3] = [-0.2, 0.1, 0.776]
 
 # # Put box in right orientation
-# q_init[rank + 3 : rank + 7] = [0, -sqrt(2) / 2, 0, sqrt(2) / 2]
-# q_goal[rank + 3 : rank + 7] = q_init[rank + 3 : rank + 7] 
+q_init[rank + 3 : rank + 7] = [0, -sqrt(2) / 2, 0, sqrt(2) / 2]
+q_goal[rank + 3 : rank + 7] = q_init[rank + 3 : rank + 7] 
 
 
 
@@ -94,15 +106,19 @@ grippers = [
 ]
 # Define the set of objects that can be manipulated
 objects = [
-
+    'box1'
 ]
 # Define the set of handles for each object
 handlesPerObject = [
-
+    ["box1/handle2"]
 ]
 # Define the set of contact surfaces used for each object
 contactSurfacesPerObject = [
+    ['box1/box_surface'],
+]
 
+envContactSurfaces = [
+    "panda/top",
 ]
 
 # Define rules for associating grippers and handles (here all associations are
@@ -114,11 +130,16 @@ rules = [
 cg = ConstraintGraph(robot, "graph")
 factory = ConstraintGraphFactory(cg)
 factory.setGrippers(grippers)
-# factory.environmentContacts(envContactSurfaces)
-# factory.setObjects(objects, handlesPerObject, contactSurfacesPerObject)
-# factory.setRules(rules)
+factory.environmentContacts(envContactSurfaces)
+factory.setObjects(objects, handlesPerObject, contactSurfacesPerObject)
+factory.setRules(rules)
 factory.generate()
 #cg.addConstraints(graph=True, constraints=Constraints(numConstraints=locklhand))
+ps.createTransformationConstraint("move-vertical", "", "box1/root_joint", [0,0,0,0,0,0,1], [True, True, False, False, False, True])
+ps.setConstantRightHandSide("move-vertical", False)
+cg.addConstraints(edge="panda/gripper > box1/handle2 | f_23", constraints = Constraints(numConstraints=["move-vertical"]))
+cg.addConstraints(edge="panda/gripper < box1/handle2 | 0-0_32", constraints = Constraints(numConstraints=["move-vertical"]))
+
 cg.initialize()
 
 ps.setInitialConfig(q_init)

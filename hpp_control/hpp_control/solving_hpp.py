@@ -54,12 +54,13 @@ class HPPSimple(Node):
         if self.arm_id not in self.SUPPORTED_ROBOTS:
             raise RuntimeError(f"ERROR : Bad argument.\nRobot {self.arm_id} is not supported. Avalaible robots {self.SUPPORTED_ROBOTS}")
 
-        path = os.path.join(get_package_share_directory("hpp_control"),"robots",f"{self.arm_id}")
+        p_u = os.path.join(get_package_share_directory("hpp_control"),"urdf",f"{self.arm_id}.urdf")
+        p_s = os.path.join(get_package_share_directory("hpp_control"),"srdf",f"{self.arm_id}.srdf")
 
-        with open(f"{path}.urdf", "r") as f:
+        with open(p_u, "r") as f:
             urdf_string = f.read()
 
-        with open(f"{path}.srdf", "r") as f:
+        with open(p_s, "r") as f:
             srdf_string = f.read()
 
         Robot.urdfString = urdf_string
@@ -98,7 +99,13 @@ class HPPSimple(Node):
         self.ps.setConstantRightHandSide('locked_finger_1', True)
         self.ps.setConstantRightHandSide('locked_finger_2', True)
 
-        self.ps.addPathOptimizer ("RandomShortcut")
+        
+        self.ps.addPathOptimizer('SimpleShortcut')
+        self.ps.addPathOptimizer('RandomShortcut')
+        self.ps.addPathOptimizer('SimpleTimeParameterization')
+
+        self.ps.setParameter('SimpleTimeParameterization/safety',0.5)
+        
 
         self.cg = ConstraintGraph(self.robot,"manipulation") #Une fonction pour reset les graphes
         factory = ConstraintGraphFactory(self.cg)
@@ -157,10 +164,11 @@ class HPPSimple(Node):
         trajectory.points = []
 
         for i in range(len(times)):
+            print(times[i])
             wp = waypoints[i]
             point = JointTrajectoryPoint()
             point.positions = self.extractRobotConfig(wp, q_names, grip=wp[7])
-            v = self.ps.derivativeAtParam(0, 1, times[i])
+            v = self.ps.derivativeAtParam(self.ps.numberPaths()-1, 1, times[i])
             point.velocities = self.extractRobotConfig(v, q_names)
             point.time_from_start = Duration(sec=int(times[i]), nanosec=int((times[i] - int(times[i])) * 1e9))
 
