@@ -18,16 +18,16 @@ from hpp.gepetto.manipulation import ViewerFactory
 
 BOX_RANGE = [-2.65, -4.4, -2.15, -3.75] #TOP LEFT BOTTOM RIGHT
 
-ARM_ID = 'fer'
+ARM_ID = 'fr3'
 
 
 loadServerPlugin("corbaserver", "manipulation-corba.so")
 Client().problem.resetProblem()
 
 # Specify path for robot urdf and srdf files
-Robot.urdfFilename = f"/ros2_ws/src/hpp_control/robots/{ARM_ID}.urdf"
+Robot.urdfFilename = f"/ros2_ws/src/hpp_control/urdf/{ARM_ID}.urdf"
 
-Robot.srdfFilename = f"/ros2_ws/src/hpp_control/robots/{ARM_ID}.srdf"
+Robot.srdfFilename = f"/ros2_ws/src/hpp_control/srdf/{ARM_ID}.srdf"
 
 robot = Robot("robot", "panda", rootJointType="anchor")
 #robot.setRootJointPosition("panda", [-2.379, -4.19, 0.733, 0,0,0,1])
