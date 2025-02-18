@@ -21,6 +21,8 @@ from builtin_interfaces.msg import Time
 from ament_index_python.packages import get_package_share_directory
 import os
 
+from .utils import generateMessage
+
 # Example of commande
 # ros2 topic pub /goalConfig sensor_msgs/msg/JointState "{name: ['fer_joint1','fer_joint2','fer_joint3','fer_joint4','fer_joint5','fer_joint6','fer_joint7','finger_joint1','finger_joint2'], position: [0.0, 0.5, 0.4, -1.0, 0.0, 1.0, 0.0, 1.0, 1.0]}" --once
 # ros2 topic pub /goalConfig sensor_msgs/msg/JointState "{position: [0.0, 0.5, 0.4, -1.0, 0.0, 1.0, 0.0, 1.0, 1.0]}" --once
@@ -45,7 +47,7 @@ class HPPSimple(Node):
     def __init__(self):
         super().__init__('hpp_node')
 
-        self.declare_parameter('arm_id', 'fer')
+        self.declare_parameter('arm_id', '')
         self.arm_id = self.get_parameter('arm_id').value
 
         self.declare_parameter('load_grip', False)
@@ -103,10 +105,11 @@ class HPPSimple(Node):
         self.ps.addPathOptimizer('SimpleShortcut')
         self.ps.addPathOptimizer('RandomShortcut')
         self.ps.addPathOptimizer('SimpleTimeParameterization')
+        # If you add another optimizer change the path id in the solve() --> getWaypoints().
 
-        ps.setParameter('SimpleTimeParameterization/order', 2)
-        ps.setParameter('SimpleTimeParameterization/safety',0.5)
-        ps.setParameter('SimpleTimeParameterization/maxAcceleration',0.5)
+        self.ps.setParameter('SimpleTimeParameterization/order', 2)
+        self.ps.setParameter('SimpleTimeParameterization/safety',0.5)
+        self.ps.setParameter('SimpleTimeParameterization/maxAcceleration',0.5)
         
 
         self.cg = ConstraintGraph(self.robot,"manipulation") #Une fonction pour reset les graphes
@@ -154,29 +157,15 @@ class HPPSimple(Node):
         self.get_logger().info("Computing trajectory...")
         try:
             self.ps.solve()
+            waypoints, times = self.ps.getWaypoints(3)
         except Exception as e:
-            self.get_logger().error(f"Planning FAILED : {e}")
+            self.get_logger().error(f"ERROR : {e}")
 
-        waypoints, times = self.ps.getWaypoints(0)
+        
 
         trajectory_msg = FollowJointTrajectory.Goal()
 
-        trajectory = JointTrajectory()
-        trajectory.joint_names = q_names
-        trajectory.points = []
-
-        for i in range(len(times)):
-            print(times[i])
-            wp = waypoints[i]
-            point = JointTrajectoryPoint()
-            point.positions = self.extractRobotConfig(wp, q_names, grip=wp[7])
-            v = self.ps.derivativeAtParam(self.ps.numberPaths()-1, 1, times[i])
-            point.velocities = self.extractRobotConfig(v, q_names)
-            point.time_from_start = Duration(sec=int(times[i]), nanosec=int((times[i] - int(times[i])) * 1e9))
-
-            trajectory.points.append(point)
-
-        trajectory_msg.trajectory = trajectory
+        trajectory_msg.trajectory = generateMessage(self.ps,waypoints,times,2,self.arm_id)
 
         self.controller.wait_for_server()
         goal_handle = self.controller.send_goal_async(trajectory_msg).result()
@@ -189,27 +178,6 @@ class HPPSimple(Node):
         q[7] = val
         q[8] = val
         return q
-
-    def extractRobotConfig(self, q, desired_joint_names, grip=0.0): 
-        # Le param grip permet de passer la valeur pour le joint gripper. 
-        # En position on envoie la valeur orginale.
-        # En vitesse 0, car le gripper est statique.
-
-        q_ros2 = q[0:7]
-        if not self.no_grip:
-            q_ros2.append(grip)
-
-        # tri selon les noms de joint
-        # for q_name in desired_joint_names:
-        #    if q_name in self.gripper_value:
-        #        q_ros2.append(self.gripper_value[q_name])
-        #        continue
-        #    for j in range(len(self.hpp_joint_names)):
-        #        if q_name == self.hpp_joint_names[j]:
-        #            q_ros2.append(q[j])
-        #            break
-
-        return q_ros2
     
     def computeFullQinit(self, q, joint_names):
         q_init = self.robot.getCurrentConfig()

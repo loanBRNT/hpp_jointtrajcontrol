@@ -1,4 +1,4 @@
-# Import libraries and load robots. {{{1
+# Import libraries and load robots.
 
 # Import.
 from math import sqrt
@@ -15,6 +15,10 @@ from hpp.corbaserver.manipulation import (
 from hpp.corbaserver.manipulation.pr2 import Robot
 from hpp.gepetto import PathPlayer  # noqa: F401
 from hpp.gepetto.manipulation import ViewerFactory
+
+# Import to interact with ROS2 controller. 
+# If you want to make a lot of call to these function, please considerer using sending_hpp node instead.
+from utils import getRobotState, sendingTraj
 
 
 BOX_RANGE = [-2.65, -4.4, -2.15, -3.75] #TOP LEFT BOTTOM RIGHT
@@ -135,10 +139,10 @@ factory.setObjects(objects, handlesPerObject, contactSurfacesPerObject)
 factory.setRules(rules)
 factory.generate()
 #cg.addConstraints(graph=True, constraints=Constraints(numConstraints=locklhand))
-ps.createTransformationConstraint("move-vertical", "", "box1/root_joint", [0,0,0,0,0,0,1], [True, True, False, False, False, True])
-ps.setConstantRightHandSide("move-vertical", False)
-cg.addConstraints(edge="panda/gripper > box1/handle2 | f_23", constraints = Constraints(numConstraints=["move-vertical"]))
-cg.addConstraints(edge="panda/gripper < box1/handle2 | 0-0_32", constraints = Constraints(numConstraints=["move-vertical"]))
+# ps.createTransformationConstraint("move-vertical", "", "box1/root_joint", [0,0,0,0,0,0,1], [True, True, False, False, False, True])
+# ps.setConstantRightHandSide("move-vertical", False)
+# cg.addConstraints(edge="panda/gripper > box1/handle2 | f_23", constraints = Constraints(numConstraints=["move-vertical"]))
+# cg.addConstraints(edge="panda/gripper < box1/handle2 | 0-0_32", constraints = Constraints(numConstraints=["move-vertical"]))
 
 cg.initialize()
 
