@@ -165,7 +165,7 @@ class HPPSimple(Node):
 
         trajectory_msg = FollowJointTrajectory.Goal()
 
-        trajectory_msg.trajectory = generateMessage(self.ps,waypoints,times,2,self.arm_id)
+        trajectory_msg.trajectory = generateMessage(self.ps,waypoints,times,2,3,self.arm_id)
 
         self.controller.wait_for_server()
         goal_handle = self.controller.send_goal_async(trajectory_msg).result()

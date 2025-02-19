@@ -2,6 +2,7 @@
 
 # Import.
 from math import sqrt
+import os
 
 from hpp.corbaserver import loadServerPlugin
 from hpp.corbaserver.manipulation import (
@@ -15,6 +16,7 @@ from hpp.corbaserver.manipulation import (
 from hpp.corbaserver.manipulation.pr2 import Robot
 from hpp.gepetto import PathPlayer  # noqa: F401
 from hpp.gepetto.manipulation import ViewerFactory
+from ament_index_python.packages import get_package_share_directory
 
 # Import to interact with ROS2 controller. 
 # If you want to make a lot of call to these function, please considerer using sending_hpp node instead.
@@ -23,7 +25,7 @@ from utils import getRobotState, sendingTraj
 
 BOX_RANGE = [-2.65, -4.4, -2.15, -3.75] #TOP LEFT BOTTOM RIGHT
 
-ARM_ID = 'fer'
+ARM_ID = 'fr3'
 
 class Box:
     rootJointType = "freeflyer"
@@ -35,11 +37,11 @@ class Box:
 
 loadServerPlugin("corbaserver", "manipulation-corba.so")
 Client().problem.resetProblem()
+pkg_path = get_package_share_directory("hpp_control")
 
 # Specify path for robot urdf and srdf files
-Robot.urdfFilename = f"/ros2_ws/src/hpp_control/urdf/{ARM_ID}.urdf"
-
-Robot.srdfFilename = f"/ros2_ws/src/hpp_control/srdf/{ARM_ID}.srdf"
+Robot.urdfFilename = os.path.join(pkg_path, "urdf" , f"{ARM_ID}.urdf")
+Robot.srdfFilename = os.path.join(pkg_path, "srdf" , f"{ARM_ID}.srdf")
 
 robot = Robot("robot", "panda", rootJointType="anchor")
 
@@ -65,7 +67,7 @@ ps.addPathOptimizer('SimpleTimeParameterization')
 
 ps.setParameter('SimpleTimeParameterization/order', 2)
 ps.setParameter('SimpleTimeParameterization/safety',0.3)
-ps.setParameter('SimpleTimeParameterization/maxAcceleration',0.5)
+ps.setParameter('SimpleTimeParameterization/maxAcceleration',0.2)
 
 # if ps.loadPlugin('manipulation-spline-gradient-based.so') :
 #     ps.addPathOptimizer('SplineGradientBased_bezier1')
@@ -90,7 +92,10 @@ q_goal[0] = 1.5
 
 rank = robot.rankInConfiguration["box1/root_joint"]
 q_init[rank : rank + 3] = [-0.1, -0.1, 0.776]
-q_goal[rank : rank + 3] = [-0.2, 0.1, 0.776]
+if ARM_ID=="fer":
+    q_goal[rank : rank + 3] = [-0.2, 0.1, 0.776]
+else :
+    q_goal[rank : rank + 3] = [-0.1, 0.2, 0.776]
 
 # # Put box in right orientation
 q_init[rank + 3 : rank + 7] = [0, -sqrt(2) / 2, 0, sqrt(2) / 2]

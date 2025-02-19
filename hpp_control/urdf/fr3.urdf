@@ -209,7 +209,7 @@
 		<parent link="fr3_link0"/>
 		<child link="fr3_link1"/>
 		<axis xyz="0 0 1"/>
-		<limit effort="87.0" lower="-2.7437" upper="2.7437" velocity="0.9"/>
+		<limit effort="87.0" lower="-2.7437" upper="2.7437" velocity="2.62"/>
 		<safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.7437" soft_upper_limit="2.7437"/>
 		<dynamics D="1" K="7000" damping="0.003" friction="0.2" mu_coulomb="0" mu_viscous="16"/>
 	</joint>
@@ -236,7 +236,7 @@
 		<parent link="fr3_link1"/>
 		<child link="fr3_link2"/>
 		<axis xyz="0 0 1"/>
-		<limit effort="87.0" lower="-1.7837" upper="1.7837" velocity="0.9"/>
+		<limit effort="87.0" lower="-1.7837" upper="1.7837" velocity="2.62"/>
 		<safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-1.7837" soft_upper_limit="1.7837"/>
 		<dynamics D="1" K="7000" damping="0.003" friction="0.2" mu_coulomb="0" mu_viscous="16"/>
 	</joint>
@@ -263,7 +263,7 @@
 		<parent link="fr3_link2"/>
 		<child link="fr3_link3"/>
 		<axis xyz="0 0 1"/>
-		<limit effort="87.0" lower="-2.9007" upper="2.9007" velocity="0.9"/>
+		<limit effort="87.0" lower="-2.9007" upper="2.9007" velocity="2.62"/>
 		<safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.9007" soft_upper_limit="2.9007"/>
 		<dynamics D="1" K="7000" damping="0.003" friction="0.2" mu_coulomb="0" mu_viscous="16"/>
 	</joint>
@@ -290,7 +290,7 @@
 		<parent link="fr3_link3"/>
 		<child link="fr3_link4"/>
 		<axis xyz="0 0 1"/>
-		<limit effort="87.0" lower="-3.0421" upper="-0.1518" velocity="0.9"/>
+		<limit effort="87.0" lower="-3.0421" upper="-0.1518" velocity="2.62"/>
 		<safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3.0421" soft_upper_limit="-0.1518"/>
 		<dynamics D="1" K="7000" damping="0.003" friction="0.2" mu_coulomb="0" mu_viscous="16"/>
 	</joint>
@@ -317,7 +317,7 @@
 		<parent link="fr3_link4"/>
 		<child link="fr3_link5"/>
 		<axis xyz="0 0 1"/>
-		<limit effort="12.0" lower="-2.8065" upper="2.8065" velocity="0.9"/>
+		<limit effort="12.0" lower="-2.8065" upper="2.8065" velocity="2.62"/>
 		<safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8065" soft_upper_limit="2.8065"/>
 		<dynamics D="1" K="7000" damping="0.003" friction="0.2" mu_coulomb="0" mu_viscous="16"/>
 	</joint>
@@ -344,7 +344,7 @@
 		<parent link="fr3_link5"/>
 		<child link="fr3_link6"/>
 		<axis xyz="0 0 1"/>
-		<limit effort="12.0" lower="0.5445" upper="4.5169" velocity="0.9"/>
+		<limit effort="12.0" lower="0.5445" upper="4.5169" velocity="2.62"/>
 		<safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="0.5445" soft_upper_limit="4.5169"/>
 		<dynamics D="1" K="7000" damping="0.003" friction="0.2" mu_coulomb="0" mu_viscous="16"/>
 	</joint>
@@ -371,7 +371,7 @@
 		<parent link="fr3_link6"/>
 		<child link="fr3_link7"/>
 		<axis xyz="0 0 1"/>
-		<limit effort="12.0" lower="-3.0159" upper="3.0159" velocity="0.9"/>
+		<limit effort="12.0" lower="-3.0159" upper="3.0159" velocity="2.62"/>
 		<safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3.0159" soft_upper_limit="3.0159"/>
 		<dynamics D="1" K="7000" damping="0.003" friction="0.2" mu_coulomb="0" mu_viscous="16"/>
 	</joint>

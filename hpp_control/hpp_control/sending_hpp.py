@@ -83,7 +83,7 @@ class HPPSend(Node):
 
         trajectory_msg = FollowJointTrajectory.Goal()
 
-        trajectory_msg.trajectory = generateMessage(c.problem,waypoints,times,derivative,self.arm_id,self.no_grip)
+        trajectory_msg.trajectory = generateMessage(c.problem,waypoints,times,derivative,pathID,self.arm_id,self.no_grip)
 
         self.controller.wait_for_server()
         goal_handle = self.controller.send_goal_async(trajectory_msg).result() #Implementer des suivis du feedback
