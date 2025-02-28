@@ -145,7 +145,7 @@ class HPPSimple(Node):
         future.add_done_callback(self.getQfromMsg)
 
 
-    def plan_ee_pose(self, request, response):
+    async def plan_ee_pose(self, request, response):
         self.setupHPP()
         self.pose_goal = request.pose
         q_init = request.q_init.position.tolist()
@@ -167,11 +167,11 @@ class HPPSimple(Node):
             response.success = False
             return response
 
-        self.solve()
+        success = await self.solve()
 
         return response
 
-    def plan_q_config(self, request, response):
+    async def plan_q_config(self, request, response):
         self.setupHPP()
         q_init = request.q_init.position.tolist()
         q_goal = request.q_goal.position.tolist()
@@ -179,21 +179,19 @@ class HPPSimple(Node):
         self.q_goal = self.setGripperValue(q_goal)
         self.q_init = self.setGripperValue(q_init)
         
-        self.solve()
+        success = await self.solve()
 
         return response
 
-    def getQfromMsg(self, msg):
+    async def getQfromMsg(self, msg):
         q_init = msg.result().position.tolist()
         q_names = msg.result().name
-
-        print(q_names)
         
         self.q_init = self.computeFullQinit(q_init, q_names)
 
-        self.solve()
+        ssuccess = await self.solve()
 
-    def solve(self):
+    async def solve(self):
         if self.q_goal == None or self.q_init == None:
             self.get_logger().error("ERROR : Q_GOAL or Q_INIT is none")
         self.ps.setInitialConfig(self.q_init)
@@ -214,13 +212,26 @@ class HPPSimple(Node):
         trajectory_msg.trajectory = generateMessage(self.ps,waypoints,times,2,3,self.arm_id)
 
         self.controller.wait_for_server()
-        goal_handle = self.controller.send_goal_async(trajectory_msg).result()
-        self.get_logger().info("Trajectory sended")
+        goal_future = self.controller.send_goal_async(trajectory_msg)
+        self.get_logger().info("Trajectory sent, waiting for result...")
 
+        goal_handle = await goal_future
+
+        self.get_logger().info("Trajectory Accepted")
+
+        result_future = goal_handle.get_result_async()
+        result = await result_future
+
+        self.get_logger().info("Trajectory Succeeded")
+
+        result = result.result
+        print(result)
+        print(result.error_code)
         return True
     
-    def computeConfigFromPose(self, q, pose, nb_try=500, freedom=[True, True, True, True, True, True]):
+    def computeConfigFromPose(self, q, pose, nb_try=500, freedom=6*[True]):
         self.robot.client.manipulation.robot.addHandle('pandas/support_link','moveTo',pose, 0.1, freedom)
+        print(pose)
         # self.robot.client.manipulation.robot.setHandlePositionInJoint('moveTo',pose)
 
         self.cg.createGrasp('moveToGrasp','pandas/gripper','moveTo')
@@ -234,8 +245,12 @@ class HPPSimple(Node):
 
         solver.add(constraint, 1)
 
+        q_init = q
+        seuil = nb_try // 5
         for i in range(nb_try):
-            res, q1 = solver.apply(q)
+            if i >= seuil:
+                q_init = self.robot.shootRandomConfig()
+            res, q1 = solver.apply(q_init)
             if res:
                 break
         print(i)
@@ -301,7 +316,8 @@ def main(args=None):
     rclpy.init(args=args)
 
     hpp = HPPSimple()
-    rclpy.spin(hpp)
+    while rclpy.ok():
+        rclpy.spin_once(hpp)  # Non-blocking spin
 
     hpp.destroy_node()
     rclpy.shutdown()

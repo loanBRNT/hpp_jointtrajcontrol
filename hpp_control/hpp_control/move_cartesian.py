@@ -39,6 +39,8 @@ robot = Robot("robot", "pandas", rootJointType="anchor")
 
 ps = ProblemSolver(robot)
 
+vf = ViewerFactory(ps)
+
 # Add gripper
 robot.client.manipulation.robot.addGripper\
     (f"pandas/{ARM_ID}_hand_tcp", 'pandas/gripper', [0,0,0,sqrt(2)/2,0,sqrt(2)/2,0], 0.1)
@@ -126,9 +128,10 @@ cg.initialize()
 
 pose = [0, 0, 0.8, 0, sqrt(2)/2, 0, sqrt(2)/2]
 robot.client.manipulation.robot.addHandle('pandas/support_link','moveTo',pose, 0.1, 6 * [True])
+print(pose)
 
 #robot.client.manipulation.robot.setHandlePositionInJoint('moveTo',pose)
-
+cg.createPreGrasp('moveToPreGrasp', 'pandas/gripper','moveTo') # grasp et projeter comme avec mplib
 cg.createGrasp('moveToGrasp','pandas/gripper','moveTo')
 
 p = ps.client.basic.problem.getProblem()
@@ -141,12 +144,11 @@ constraint = ps.client.basic.problem.getConstraint('moveToGrasp')
 
 solver.add(constraint, 1)
 
-print(p)
-print(r)
-print(solver)
-
 for i in range(100):
-    res, q1 = solver.apply(q_init)
+    q = robot.shootRandomConfig()
+    if i==1:
+        q = q_init
+    res, q1 = solver.apply(q)
     if res:
         break
 print(f"{res} in {i}")
