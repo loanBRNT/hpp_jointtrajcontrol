@@ -8,6 +8,7 @@ from rclpy.node import Node
 from rclpy.action import ActionClient
 
 import sys
+from math import sqrt
 
 def getRobotState():
     rclpy.init()
@@ -81,9 +82,7 @@ def generateMessage(ps, waypoints, times, order, pathID, arm_id, no_grip=True):
             else:
                 a = [0.0 for e in range(len(point.positions))]
         point.velocities = extractRobotConfig(v, no_grip)
-        print(v)
         point.accelerations = extractRobotConfig(a, no_grip)
-        print(a)
         point.time_from_start = Duration(sec=int(times[i]), nanosec=int((times[i] - int(times[i])) * 1e9))
 
         trajectory.points.append(point)

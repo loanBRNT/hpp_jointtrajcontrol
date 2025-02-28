@@ -1,0 +1,4 @@
+sensor_msgs/JointState q_init
+sensor_msgs/JointState q_goal
+---
+bool success

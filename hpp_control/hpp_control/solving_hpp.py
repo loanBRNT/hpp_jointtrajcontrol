@@ -3,29 +3,25 @@
 from hpp.corbaserver.manipulation import Robot
 from hpp.corbaserver import loadServerPlugin, shrinkJointRange
 from hpp.corbaserver.manipulation import Robot, \
-    createContext, newProblem, ProblemSolver, ConstraintGraph, \
-    ConstraintGraphFactory, CorbaClient, SecurityMargins, Constraints
-from hpp.gepetto.manipulation import ViewerFactory
+    newProblem, ProblemSolver, ConstraintGraph, \
+    ConstraintGraphFactory
 
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
-from std_msgs.msg import String
-from sensor_msgs.msg import JointState
-from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from control_msgs.action import FollowJointTrajectory
 from control_msgs.srv import QueryTrajectoryState
-from builtin_interfaces.msg import Duration
+from sensor_msgs.msg import JointState
 from builtin_interfaces.msg import Time
+from hpp_interface.srv import PoseSolve, ConfigSolve
 
 from ament_index_python.packages import get_package_share_directory
 import os
-
+from math import sqrt
 from .utils import generateMessage
 
 # Example of commande
-# ros2 topic pub /goalConfig sensor_msgs/msg/JointState "{name: ['fer_joint1','fer_joint2','fer_joint3','fer_joint4','fer_joint5','fer_joint6','fer_joint7','finger_joint1','finger_joint2'], position: [0.0, 0.5, 0.4, -1.0, 0.0, 1.0, 0.0, 1.0, 1.0]}" --once
-# ros2 topic pub /goalConfig sensor_msgs/msg/JointState "{position: [0.0, 0.5, 0.4, -1.0, 0.0, 1.0, 0.0, 1.0, 1.0]}" --once
+# ros2 topic pub /hpp_node/fast_plan_to_q sensor_msgs/msg/JointState "{position: [0.0, 0.5, 0.4, -1.0, 0.0, 1.0, 0.0, 1.0, 1.0]}" --once
 
 class HPPSimple(Node):
     '''
@@ -76,13 +72,14 @@ class HPPSimple(Node):
                                    '/joint_trajectory_controller/follow_joint_trajectory')
         
         # Receive the goal config by the user
-        self.subscriber = self.create_subscription(JointState, '/goalConfig', self.askQinit, 2)
+        self.srv_q_pose = self.create_service(ConfigSolve, '/hpp_node/plan_trajectory_to_q_config', self.plan_q_config)
+
+        self.srv_ee_pose = self.create_service(PoseSolve, '/hpp_node/plan_trajectory_to_ee_pose', self.plan_ee_pose)
+
+        self.subscriber = self.create_subscription(JointState, '/hpp_node/fast_plan_to_q', self.askQinit, 2)
 
         # Receive the current config of the robot
         self.state_service = self.create_client(QueryTrajectoryState, '/joint_trajectory_controller/query_state')
-
-        
-
 
     def setupHPP(self):
         newProblem()
@@ -92,9 +89,12 @@ class HPPSimple(Node):
         shrinkJointRange(self.robot, [f'pandas/{self.arm_id}_joint{i}' for i in range(1,8)],0.95)
         self.ps = ProblemSolver(self.robot)
 
-        # self.vf = ViewerFactory(self.ps)
-
-        # self.vf.loadEnvironmentModel(Environement)
+        self.robot.client.manipulation.robot.addGripper\
+            (f"pandas/{self.arm_id}_hand_tcp", 'pandas/gripper', [0,0,0,sqrt(2)/2,0,sqrt(2)/2,0], 0.1)
+        
+        grippers = [
+            "pandas/gripper",
+        ]
 
         self.ps.createLockedJoint('locked_finger_1', f'pandas/{self.arm_id}_finger_joint1', [0.035])
         self.ps.createLockedJoint('locked_finger_2', f'pandas/{self.arm_id}_finger_joint2', [0.035])
@@ -114,8 +114,10 @@ class HPPSimple(Node):
 
         self.cg = ConstraintGraph(self.robot,"manipulation") #Une fonction pour reset les graphes
         factory = ConstraintGraphFactory(self.cg)
+        factory.setGrippers(grippers)
         factory.generate()
 
+        self.cg.initialize()
 
     def askQinit(self, msg):
         q_goal = msg.position.tolist()
@@ -140,17 +142,63 @@ class HPPSimple(Node):
 
         future = self.state_service.call_async(request)
 
-        future.add_done_callback(self.solve)
+        future.add_done_callback(self.getQfromMsg)
 
-    def solve(self, msg):
 
+    def plan_ee_pose(self, request, response):
+        self.setupHPP()
+        self.pose_goal = request.pose
+        q_init = request.q_init.position.tolist()
+        self.q_init = self.setGripperValue(q_init)
+        
+        pose = [
+                self.pose_goal.position.x,
+                self.pose_goal.position.y,
+                self.pose_goal.position.z,
+                self.pose_goal.orientation.x,
+                self.pose_goal.orientation.y,
+                self.pose_goal.orientation.z,
+                self.pose_goal.orientation.w
+                ]
+        res, self.q_goal = self.computeConfigFromPose(q_init, pose)
+
+        if not res:
+            self.get_logger().error("No config founded")
+            response.success = False
+            return response
+
+        self.solve()
+
+        return response
+
+    def plan_q_config(self, request, response):
+        self.setupHPP()
+        q_init = request.q_init.position.tolist()
+        q_goal = request.q_goal.position.tolist()
+
+        self.q_goal = self.setGripperValue(q_goal)
+        self.q_init = self.setGripperValue(q_init)
+        
+        self.solve()
+
+        return response
+
+    def getQfromMsg(self, msg):
         q_init = msg.result().position.tolist()
         q_names = msg.result().name
-        
-        q_init = self.computeFullQinit(q_init, q_names)
 
-        self.ps.setInitialConfig (q_init)
-        self.ps.addGoalConfig (self.q_goal)
+        print(q_names)
+        
+        self.q_init = self.computeFullQinit(q_init, q_names)
+
+        self.solve()
+
+    def solve(self):
+        if self.q_goal == None or self.q_init == None:
+            self.get_logger().error("ERROR : Q_GOAL or Q_INIT is none")
+        self.ps.setInitialConfig(self.q_init)
+
+        self.ps.addGoalConfig(self.q_goal)
 
         self.cg.initialize()
 
@@ -161,8 +209,6 @@ class HPPSimple(Node):
         except Exception as e:
             self.get_logger().error(f"ERROR : {e}")
 
-        
-
         trajectory_msg = FollowJointTrajectory.Goal()
 
         trajectory_msg.trajectory = generateMessage(self.ps,waypoints,times,2,3,self.arm_id)
@@ -171,12 +217,44 @@ class HPPSimple(Node):
         goal_handle = self.controller.send_goal_async(trajectory_msg).result()
         self.get_logger().info("Trajectory sended")
 
+        return True
+    
+    def computeConfigFromPose(self, q, pose, nb_try=500, freedom=[True, True, True, True, True, True]):
+        self.robot.client.manipulation.robot.addHandle('pandas/support_link','moveTo',pose, 0.1, freedom)
+        # self.robot.client.manipulation.robot.setHandlePositionInJoint('moveTo',pose)
+
+        self.cg.createGrasp('moveToGrasp','pandas/gripper','moveTo')
+
+        p = self.ps.client.basic.problem.getProblem()
+        r = p.robot()
+
+        solver = self.ps.client.basic.problem.createConfigProjector(r,'moveToSolver', 1e-6, 40)
+
+        constraint = self.ps.client.basic.problem.getConstraint('moveToGrasp')
+
+        solver.add(constraint, 1)
+
+        for i in range(nb_try):
+            res, q1 = solver.apply(q)
+            if res:
+                break
+        print(i)
+        
+        p.deleteThis()
+        solver.deleteThis()
+
+        return res, q1
+
     # ==========================================================
     # Following function need to be modified to be more generalist
 
     def setGripperValue(self, q, val=0.035):
-        q[7] = val
-        q[8] = val
+        if len(q) < 8:
+            q.append(val)
+            q.append(val)
+        else:
+            q[7] = val
+            q[8] = val
         return q
     
     def computeFullQinit(self, q, joint_names):
@@ -225,9 +303,6 @@ def main(args=None):
     hpp = HPPSimple()
     rclpy.spin(hpp)
 
-    # Destroy the node explicitly
-    # (optional - otherwise it will be done automatically
-    # when the garbage collector destroys the node object)
     hpp.destroy_node()
     rclpy.shutdown()
 
@@ -235,27 +310,4 @@ def main(args=None):
 if __name__ == '__main__':
     main()
 
-
-
-
-# self.ps.addOptimizer()
-
-
-
-
-
-
-
-# print (ps.solve ())
-# Pour recup la traj avec les points :  wp, times = ps.getWaypoints(pathId=0) times = [t1,t2,..ti..]
-# POur trouver les vitesses ps.derivativeAtParam(pathId, 1, ti)
-
-## Uncomment this to connect to a viewer server and play solution paths
-# 
-# v = vf.createViewer()
-# from hpp.gepetto import PathPlayer
-# pp = PathPlayer (v)
-
-# pp (0)
-# pp (1)
 
