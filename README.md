@@ -1,93 +1,88 @@
-# hpp_JointTrajControl
+# HPP ROS2 CONTROL
+![Docker](https://img.shields.io/badge/Docker-Supported-blue)
+![ROS2 Jazzy](https://img.shields.io/badge/ROS2-Jazzy-blue)
+![ROS2 Humble](https://img.shields.io/badge/ROS2-Humble-blue)
 
 
-
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.laas.fr/bernat-thesis/hpp_jointtrajcontrol.git
-git branch -M main
-git push -uf origin main
-```
-
-## Integrate with your tools
-
-- [ ] [Set up project integrations](https://gitlab.laas.fr/bernat-thesis/hpp_jointtrajcontrol/-/settings/integrations)
-
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
+Author : Loan Bernat. l.bernat@sileane.com
 
 ## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+This repository contains two ROS2 packages :
+- **hpp_control** : The ros2 control package to interface the software [Humanoid Path Planner](https://humanoid-path-planner.github.io/hpp-doc/) (HPP) easly with the ros2_controller [Joint Trajectory Controller](https://control.ros.org/jazzy/doc/ros2_controllers/joint_trajectory_controller/doc/userdoc.html).
+- **hpp_interface** : The ros2 package with message, service and action type for hpp_control.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+The repository also provides a **Dockerfile** which allow you to have a base image already tested to run those packages on a separated container from the rest of your code. See [Docker Integration](#docker-integration) for more details.
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+⚠️ ***WARNING*** : These packages are thinked to be used with panda arm *fer* (franka emika research) or *fr3* (franka research 3) in the ADREAM environment. To use on differents robots or environment, you need to change loaded URDF and SRDF and modify the `extractRobotConfig` function in utils.py.
 
 ## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+
+In the hpp_control package you have two nodes and two exemple scripts.
+
+### Examples
+
+- **move_one_box.py** : Exemple of script to create a HPP problem and solve it.
+
+- **move_cartesian.py** : Example of script to create an handle in the space and generate a configuration of the robot with the end-effector positioned at the handle.
+
+From these script (using interactive python `python3 -i **.py`) you can aslo acess function from **utils.py**. Those functions allow you to rapidly test and debug your script without the need to use a separated node.
+- **getRobotState()** connect to the robot and return its configuration
+- **sendingTraj(problesolver, pathID, derivative, ARM_ID)** send the path corresponding to the pathID to a ARM_ID robot with only position (derivative=0), position + speed (derivative=1), position + speed + acceleration (derivative=2) 
+
+### ROS2 Nodes
+
+Both nodes take a ros parameter : arm_id ; Which correspond to the type of panda you are using (fer or fr3).
+
+**sending_hpp** : Sending an already calculated trajectory to the ros2 controllers.
+
+You can interact with the node using the `/hpp_node/sendTrajectory` service based on the `HppSendTrajectory` service type.
+
+To use this node, you need to have a corbaserver running with trajectory already solved. For example, you can use the node to send the trajectory computed from **move_one_box.py**
+
+**solving_hpp** : Standalone node to plan a trajecotry with HPP. Can take a configuration or an end-effector pose in input.
+
+You can interact using ros2 actions `ConfigSolve` or `PoseSolve` if you want to wait the end of the trajectory. Or you can simply publish the desired pose on the topic `/hpp_node/fast_plan_to_q` to automatically calcul and send the trajectory.
+
+## Docker Integration
+
+To use those packages in a container, you just need to mount folders hpp_control and hpp_interface direclty into the container, setting network:'host' (to simplify) and setting the same ROS_DOMAINE_ID that the rest of your project.
+
+This is an exemple of use inside a docker-compose file : 
+```
+hpp:
+    build: 
+      context: .
+      dockerfile: hpp_jointtrajcontrol/Dockerfile
+    network_mode: "host"
+    container_name: hpp
+    command: /bin/bash
+    tty: true
+    stdin_open: true
+    volumes:
+      - ./hpp_jointtrajcontrol/hpp_control:/ros2_ws/src/hpp_control
+      - ./hpp_jointtrajcontrol/hpp_interface:/ros2_ws/src/hpp_interface
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /dev:/dev
+    environment:
+      QT_X11_NO_MITSHM: 1
+      DISPLAY: $DISPLAY
+      ROS_DOMAIN_ID: 10
+      RMW_IMPLEMENTATION: rmw_cyclonedds_cpp
+    cap_add:
+      - SYS_NICE
+    ulimits:
+      rtprio: 99
+      rttime: -1
+      memlock: 8428281856
+```
+
+If you are not familiar with docker or docker compose. Check the [official documentation](https://docs.docker.com/compose/)
 
 ## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+Please contact me at l.bernat@sileane.com
 
 ## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+You can contribute to this project by opening a merge request.
 
 ## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Appache-2.0

@@ -8,12 +8,13 @@ from hpp.corbaserver.manipulation import Robot, \
 
 import rclpy
 from rclpy.node import Node
-from rclpy.action import ActionClient
+from rclpy.action import ActionClient, ActionServer, GoalResponse
+
 from control_msgs.action import FollowJointTrajectory
 from control_msgs.srv import QueryTrajectoryState
 from sensor_msgs.msg import JointState
 from builtin_interfaces.msg import Time
-from hpp_interface.srv import PoseSolve, ConfigSolve
+from hpp_interface.action import PoseSolve, ConfigSolve
 
 from ament_index_python.packages import get_package_share_directory
 import os
@@ -72,14 +73,26 @@ class HPPSimple(Node):
                                    '/joint_trajectory_controller/follow_joint_trajectory')
         
         # Receive the goal config by the user
-        self.srv_q_pose = self.create_service(ConfigSolve, '/hpp_node/plan_trajectory_to_q_config', self.plan_q_config)
+        self.action_q_pose = ActionServer(self, ConfigSolve, '/hpp_node/plan_trajectory_to_q_config', 
+                                          execute_callback=self.plan_q_config, goal_callback=self.goal_callback)
 
-        self.srv_ee_pose = self.create_service(PoseSolve, '/hpp_node/plan_trajectory_to_ee_pose', self.plan_ee_pose)
+        self.action_ee_pose = ActionServer(self, PoseSolve, "/hpp_node/plan_trajectory_to_ee_pose",
+                                           execute_callback=self.plan_ee_pose, goal_callback=self.goal_callback)
+        
+        self.action_already_running = False
 
         self.subscriber = self.create_subscription(JointState, '/hpp_node/fast_plan_to_q', self.askQinit, 2)
 
         # Receive the current config of the robot
         self.state_service = self.create_client(QueryTrajectoryState, '/joint_trajectory_controller/query_state')
+
+    def goal_callback(self, goal_request):
+        """Accepts or rejects an incoming goal"""
+        if self.action_already_running:
+            self.get_logger().info("New request received, but a node is already running.")
+            return GoalResponse.REJECT
+        self.action_already_running = True
+        return GoalResponse.ACCEPT  # Always accept for now
 
     def setupHPP(self):
         newProblem()
@@ -145,10 +158,10 @@ class HPPSimple(Node):
         future.add_done_callback(self.getQfromMsg)
 
 
-    async def plan_ee_pose(self, request, response):
+    async def plan_ee_pose(self, goal_handle):
         self.setupHPP()
-        self.pose_goal = request.pose
-        q_init = request.q_init.position.tolist()
+        self.pose_goal = goal_handle.request.pose
+        q_init = goal_handle.request.q_init.position.tolist()
         self.q_init = self.setGripperValue(q_init)
         
         pose = [
@@ -162,24 +175,34 @@ class HPPSimple(Node):
                 ]
         res, self.q_goal = self.computeConfigFromPose(q_init, pose)
 
+        response = PoseSolve.Result()
+
         if not res:
             self.get_logger().error("No config founded")
             response.success = False
             return response
 
-        success = await self.solve()
+        response.success = await self.solve()
+
+        self.action_already_running = False
+        goal_handle.succeed()
 
         return response
 
-    async def plan_q_config(self, request, response):
+    async def plan_q_config(self, goal_handle):
         self.setupHPP()
-        q_init = request.q_init.position.tolist()
-        q_goal = request.q_goal.position.tolist()
+        q_init = goal_handle.request.q_init.position.tolist()
+        q_goal = goal_handle.request.q_goal.position.tolist()
 
         self.q_goal = self.setGripperValue(q_goal)
         self.q_init = self.setGripperValue(q_init)
+
+        response = PoseSolve.Result()
         
-        success = await self.solve()
+        response.success = await self.solve()
+
+        self.action_already_running = False
+        goal_handle.succeed()
 
         return response
 
@@ -217,17 +240,15 @@ class HPPSimple(Node):
 
         goal_handle = await goal_future
 
-        self.get_logger().info("Trajectory Accepted")
-
         result_future = goal_handle.get_result_async()
         result = await result_future
 
         self.get_logger().info("Trajectory Succeeded")
 
         result = result.result
-        print(result)
-        print(result.error_code)
-        return True
+
+        self.get_logger().info(f"Execution ended with value : {result.error_code}")
+        return result.error_code == 0
     
     def computeConfigFromPose(self, q, pose, nb_try=500, freedom=6*[True]):
         self.robot.client.manipulation.robot.addHandle('pandas/support_link','moveTo',pose, 0.1, freedom)

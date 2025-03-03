@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>hpp_control</name>
-  <version>2.1.0</version>
+  <version>1.0.0</version>
   <description>Simple Package to use hpp with the ros2_control JointTrajectoryController. 
   Possibility of sending 6-DOF end-effector pose to HPP.</description>
   <maintainer email="l.bernat@sileane.com">loan</maintainer>

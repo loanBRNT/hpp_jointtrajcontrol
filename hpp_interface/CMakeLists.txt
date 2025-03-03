@@ -13,8 +13,8 @@ find_package(sensor_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/HppSendTrajectory.srv"
-  "srv/PoseSolve.srv"
-  "srv/ConfigSolve.srv"
+  "action/PoseSolve.action"
+  "action/ConfigSolve.action"
   DEPENDENCIES geometry_msgs
   DEPENDENCIES sensor_msgs
 )

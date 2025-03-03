@@ -2,3 +2,5 @@ sensor_msgs/JointState q_init
 geometry_msgs/Pose pose
 ---
 bool success
+---
+string feedback
