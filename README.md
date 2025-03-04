@@ -6,6 +6,15 @@
 
 Author : Loan Bernat. l.bernat@sileane.com
 
+### Compatibility :
+
+| hpp_interface | hpp_control | Robot tested
+|-------|-------|-----|
+| 1.0.1 | 1.0.1 | fr3 |
+| 1.0.0 | 1.0.0 | fr3, fer* |
+
+(*) fer must work, you just need to change the urdf to include the mounted camera, if using the ADREM ones.
+
 ## Description
 This repository contains two ROS2 packages :
 - **hpp_control** : The ros2 control package to interface the software [Humanoid Path Planner](https://humanoid-path-planner.github.io/hpp-doc/) (HPP) easly with the ros2_controller [Joint Trajectory Controller](https://control.ros.org/jazzy/doc/ros2_controllers/joint_trajectory_controller/doc/userdoc.html).
