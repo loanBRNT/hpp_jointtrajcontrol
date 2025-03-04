@@ -131,29 +131,52 @@ robot.client.manipulation.robot.addHandle('pandas/support_link','moveTo',pose, 0
 print(pose)
 
 #robot.client.manipulation.robot.setHandlePositionInJoint('moveTo',pose)
-cg.createPreGrasp('moveToPreGrasp', 'pandas/gripper','moveTo') # grasp et projeter comme avec mplib
-cg.createGrasp('moveToGrasp','pandas/gripper','moveTo')
+cg.createPreGrasp('preGrasp', 'pandas/gripper','moveTo') # grasp et projeter comme avec mplib
+cg.createGrasp('grasp','pandas/gripper','moveTo')
 
 p = ps.client.basic.problem.getProblem()
 
 r = p.robot()
 
-solver = ps.client.basic.problem.createConfigProjector(r,'moveToSolver', 1e-6, 40)
+solverGrasp = ps.client.basic.problem.createConfigProjector(r,'graspSolver', 1e-6, 40)
+solverPreGrasp = ps.client.basic.problem.createConfigProjector(r,'preGraspSolver', 1e-6, 40)
 
-constraint = ps.client.basic.problem.getConstraint('moveToGrasp')
+constraintGrasp = ps.client.basic.problem.getConstraint('grasp')
+constraintPreGrasp = ps.client.basic.problem.getConstraint('preGrasp')
 
-solver.add(constraint, 1)
+solverGrasp.add(constraintGrasp, 1)
+solverPreGrasp.add(constraintPreGrasp, 1)
 
-for i in range(100):
+for i in range(500):
     q = robot.shootRandomConfig()
-    if i==1:
+    if i<=10:
         q = q_init
-    res, q1 = solver.apply(q)
+    res, q1 = solverPreGrasp.apply(q)
     if res:
-        break
+        find = False
+        for j in range(10):
+            res, q2 = solverGrasp.apply(q1)
+            if res:
+                find = True
+                break
+        if find:
+            break
 print(f"{res} in {i}")
 
 #constraint.deleteThis()
 
 p.deleteThis()
-solver.deleteThis()
+solverPreGrasp.deleteThis()
+solverGrasp.deleteThis()
+
+ps.setInitialConfig(q_init)
+ps.addGoalConfig(q1)
+
+ps.solve()
+
+ps.setInitialConfig(q1)
+ps.resetGoalConfigs()
+ps.addGoalConfig(q2)
+
+ps.solve()
+ps.concatenatePath(3, 7)

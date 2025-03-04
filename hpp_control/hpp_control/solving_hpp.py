@@ -173,16 +173,26 @@ class HPPSimple(Node):
                 self.pose_goal.orientation.z,
                 self.pose_goal.orientation.w
                 ]
-        res, self.q_goal = self.computeConfigFromPose(q_init, pose)
+        res, self.q_goal, q2 = self.computeConfigFromPose(q_init, pose, pre_grasp=goal_handle.request.should_pre_grasp)
 
         response = PoseSolve.Result()
+        response.success = False
 
-        if not res:
+        if res:
+            if not goal_handle.request.should_pre_grasp:      
+                response.success = await self.solve()
+            else:
+                res = await self.solve(send=False)
+                if res:
+                    self.q_init = self.q_goal
+                    self.q_goal = q2
+                    res = await self.solve(send=False)
+                    if res:
+                        self.ps.concatenatePath(3,7)
+                        response.success = await self.sendTrajectory()
+        else:
             self.get_logger().error("No config founded")
-            response.success = False
-            return response
 
-        response.success = await self.solve()
 
         self.action_already_running = False
         goal_handle.succeed()
@@ -214,22 +224,13 @@ class HPPSimple(Node):
 
         ssuccess = await self.solve()
 
-    async def solve(self):
-        if self.q_goal == None or self.q_init == None:
-            self.get_logger().error("ERROR : Q_GOAL or Q_INIT is none")
-        self.ps.setInitialConfig(self.q_init)
-
-        self.ps.addGoalConfig(self.q_goal)
-
-        self.cg.initialize()
-
-        self.get_logger().info("Computing trajectory...")
+    async def sendTrajectory(self):
         try:
-            self.ps.solve()
             waypoints, times = self.ps.getWaypoints(3)
         except Exception as e:
             self.get_logger().error(f"ERROR : {e}")
-
+            return False
+        
         trajectory_msg = FollowJointTrajectory.Goal()
 
         trajectory_msg.trajectory = generateMessage(self.ps,waypoints,times,2,3,self.arm_id)
@@ -249,37 +250,86 @@ class HPPSimple(Node):
 
         self.get_logger().info(f"Execution ended with value : {result.error_code}")
         return result.error_code == 0
-    
-    def computeConfigFromPose(self, q, pose, nb_try=500, freedom=6*[True]):
-        self.robot.client.manipulation.robot.addHandle('pandas/support_link','moveTo',pose, 0.1, freedom)
-        print(pose)
-        # self.robot.client.manipulation.robot.setHandlePositionInJoint('moveTo',pose)
 
-        self.cg.createGrasp('moveToGrasp','pandas/gripper','moveTo')
+    async def solve(self,send=True):
+        if self.q_goal == None or self.q_init == None:
+            self.get_logger().error("ERROR : Q_GOAL or Q_INIT is none")
+
+        self.ps.resetGoalConfigs()
+        self.ps.setInitialConfig(self.q_init)
+        self.ps.addGoalConfig(self.q_goal)
+        self.cg.initialize()
+
+        self.get_logger().info("Computing trajectory...")
+
+        try:
+            self.ps.solve()
+        except Exception as e:
+            self.get_logger().error(f"ERROR : {e}")
+            return False
+
+        if send:
+            return await self.sendTrajectory()
+        
+        return True
+    
+
+    '''
+    Return a config with the end effector at the pose.
+    '''
+    def computeConfigFromPose(self, q, pose, pre_grasp=False, nb_try=500, freedom=6*[True]):
+        self.robot.client.manipulation.robot.addHandle('pandas/support_link','moveTo',pose, 0.1, freedom)
+
+        self.cg.createGrasp('grasp','pandas/gripper','moveTo')
 
         p = self.ps.client.basic.problem.getProblem()
         r = p.robot()
 
-        solver = self.ps.client.basic.problem.createConfigProjector(r,'moveToSolver', 1e-6, 40)
-
-        constraint = self.ps.client.basic.problem.getConstraint('moveToGrasp')
-
-        solver.add(constraint, 1)
+        solverGrasp = self.ps.client.basic.problem.createConfigProjector(r,'graspSolver', 1e-6, 40)
+        constraintGrasp = self.ps.client.basic.problem.getConstraint('grasp')
+        solverGrasp.add(constraintGrasp, 1)
 
         q_init = q
         seuil = nb_try // 5
-        for i in range(nb_try):
-            if i >= seuil:
-                q_init = self.robot.shootRandomConfig()
-            res, q1 = solver.apply(q_init)
-            if res:
-                break
-        print(i)
+
+        q1 = []
+        q2 = []
+
+        if pre_grasp:
+            self.cg.createPreGrasp('preGrasp','pandas/gripper','moveTo')
+            solverPreGrasp = self.ps.client.basic.problem.createConfigProjector(r,'preGraspSolver', 1e-6, 40)
+            constraintPreGrasp = self.ps.client.basic.problem.getConstraint('preGrasp')
+            solverPreGrasp.add(constraintPreGrasp, 1)
+
+            for i in range(nb_try): 
+                if i>=seuil:
+                    q_init = self.robot.shootRandomConfig()
+                res, q1 = solverPreGrasp.apply(q_init)
+                if res:
+                    find = False
+                    for j in range(10):
+                        res, q2 = solverGrasp.apply(q1)
+                        if res:
+                            find = True
+                            break
+                    if find:
+                        break
+
+            solverPreGrasp.deleteThis()
+
+        else:
+            for i in range(nb_try):
+                if i >= seuil:
+                    q_init = self.robot.shootRandomConfig()
+                res, q1 = solverGrasp.apply(q_init)
+                if res:
+                    break
         
         p.deleteThis()
-        solver.deleteThis()
+        solverGrasp.deleteThis()
 
-        return res, q1
+        return res, q1, q2
+
 
     # ==========================================================
     # Following function need to be modified to be more generalist
