@@ -225,6 +225,7 @@ class HPPSimple(Node):
         ssuccess = await self.solve()
 
     async def sendTrajectory(self):
+        self.get_logger().info("Getting informations from trajectory...")
         try:
             waypoints, times = self.ps.getWaypoints(3)
         except Exception as e:
@@ -260,7 +261,7 @@ class HPPSimple(Node):
         self.ps.addGoalConfig(self.q_goal)
         self.cg.initialize()
 
-        self.get_logger().info("Computing trajectory...")
+        self.get_logger().info(f"Computing trajectory {self.q_init} to {self.q_goal}...")
 
         try:
             self.ps.solve()

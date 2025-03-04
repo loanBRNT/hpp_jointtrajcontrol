@@ -67,7 +67,6 @@ def generateMessage(ps, waypoints, times, order, pathID, arm_id, no_grip=True):
     trajectory.points = []
     l = len(times)
     for i in range(l):
-        sys.stdout.write(f"\rCalculating derivative {i+1}/{l}")
         sys.stdout.flush()
         wp = waypoints[i]
         point = JointTrajectoryPoint()
@@ -86,7 +85,6 @@ def generateMessage(ps, waypoints, times, order, pathID, arm_id, no_grip=True):
         point.time_from_start = Duration(sec=int(times[i]), nanosec=int((times[i] - int(times[i])) * 1e9))
 
         trajectory.points.append(point)
-    print()
 
     trajectory.joint_names = [f'{arm_id}_joint1',f'{arm_id}_joint2',f'{arm_id}_joint3',f'{arm_id}_joint4',f'{arm_id}_joint5',f'{arm_id}_joint6',f'{arm_id}_joint7']
     if not no_grip:
