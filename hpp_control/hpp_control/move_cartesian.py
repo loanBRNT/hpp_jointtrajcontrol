@@ -126,7 +126,8 @@ factory.generate()
 
 cg.initialize()
 
-pose = [0.28,  0.02597581,  0.02974924, 0, sqrt(2)/2, 0, sqrt(2)/2]
+#pose = [0.28,  0.02597581,  0.02974924, 0, sqrt(2)/2, 0, sqrt(2)/2]
+pose = [0.16518063735004745, 0.21510428918140567, 0.09682727096276342, 0.46012483240326113, -0.8667602448933153, -0.1418178622618426, 0.1299981169934083]
 robot.client.manipulation.robot.addHandle('pandas/support_link','moveTo',pose, 0.1, 6 * [True])
 print(pose)
 

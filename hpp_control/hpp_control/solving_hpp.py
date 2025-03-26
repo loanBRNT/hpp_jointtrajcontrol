@@ -103,7 +103,7 @@ class HPPSimple(Node):
         self.ps = ProblemSolver(self.robot)
 
         self.robot.client.manipulation.robot.addGripper\
-            (f"pandas/{self.arm_id}_hand_tcp", 'pandas/gripper', [0,0,0,sqrt(2)/2,0,sqrt(2)/2,0], 0.1)
+            (f"pandas/{self.arm_id}_hand_tcp", 'pandas/gripper', [0,0,0,sqrt(2)/2,0,sqrt(2)/2,0], 0.05)
         
         grippers = [
             "pandas/gripper",
