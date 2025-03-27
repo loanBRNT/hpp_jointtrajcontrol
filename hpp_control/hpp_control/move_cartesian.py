@@ -126,13 +126,9 @@ factory.generate()
 
 cg.initialize()
 
-# pose = [0.13984079658985138, 0.0860714316368103, 0.05416488468647003, 0, sqrt(2)/2, 0, sqrt(2)/2]
+pose = [0.8, 0.22, 0.3, 0, sqrt(2)/2, 0, sqrt(2)/2]
 
-pose = [0.251874303817749, 0.2739804828166962, 0.06485912144184112, 
--0.34917425900677534, -0.8949468121176025, 0.23254299630382577, 0.1518923803146453]
-
-
-robot.client.manipulation.robot.addHandle('pandas/support_link','moveTo',pose, 0.1, 6 * [True])
+robot.client.manipulation.robot.addHandle('pandas/support_link','moveTo',pose, 0.1, [True, True, True, False, True, True])
 print(pose)
 
 #robot.client.manipulation.robot.setHandlePositionInJoint('moveTo',pose)
@@ -177,11 +173,11 @@ solverGrasp.deleteThis()
 ps.setInitialConfig(q_init)
 ps.addGoalConfig(q1)
 
-ps.solve()
+# ps.solve()
 
-ps.setInitialConfig(q1)
-ps.resetGoalConfigs()
-ps.addGoalConfig(q2)
+# ps.setInitialConfig(q1)
+# ps.resetGoalConfigs()
+# ps.addGoalConfig(q2)
 
-ps.solve()
-ps.concatenatePath(3, 7)
+# ps.solve()
+# ps.concatenatePath(3, 7)
