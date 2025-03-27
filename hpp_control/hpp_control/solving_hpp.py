@@ -14,7 +14,7 @@ from control_msgs.action import FollowJointTrajectory
 from control_msgs.srv import QueryTrajectoryState
 from sensor_msgs.msg import JointState
 from builtin_interfaces.msg import Time
-from hpp_interface.action import PoseSolve, ConfigSolve
+from hpp_interface.action import PoseSolve, ConfigSolve, InvTrajSolve
 
 from ament_index_python.packages import get_package_share_directory
 import os
@@ -79,6 +79,9 @@ class HPPSimple(Node):
         self.action_ee_pose = ActionServer(self, PoseSolve, "/hpp_node/plan_trajectory_to_ee_pose",
                                            execute_callback=self.plan_ee_pose, goal_callback=self.goal_callback)
         
+        self.action_inv_last_traj = ActionServer(self, InvTrajSolve, "/hpp_node/inv_trajectory",
+                                           execute_callback=self.inv_last_traj, goal_callback=self.goal_callback)
+        
         self.action_already_running = False
 
         self.subscriber = self.create_subscription(JointState, '/hpp_node/fast_plan_to_q', self.askQinit, 2)
@@ -96,6 +99,8 @@ class HPPSimple(Node):
 
     def setupHPP(self):
         newProblem()
+
+        self.traj_in_memory = False
 
         self.robot = Robot("robot", "pandas", rootJointType="anchor")
         self.robot.setRootJointPosition("pandas",[0,0,0.4,0,0,0,1]) # A changer selon l'env
@@ -157,6 +162,19 @@ class HPPSimple(Node):
 
         future.add_done_callback(self.getQfromMsg)
 
+    async def inv_last_traj(self, goal_handle):
+
+        response = InvTrajSolve.Result()
+        if self.traj_in_memory:
+            response.success = await self.sendTrajectory(inv=True)
+        else :
+            response.success = False
+            self.get_logger().error(f"No trajectory in memory. Cannot invert nothing")
+
+        goal_handle.succeed()
+        self.action_already_running = False
+
+        return response
 
     async def plan_ee_pose(self, goal_handle):
         self.setupHPP()
@@ -224,7 +242,7 @@ class HPPSimple(Node):
 
         ssuccess = await self.solve()
 
-    async def sendTrajectory(self):
+    async def sendTrajectory(self, inv=False):
         self.get_logger().info("Getting informations from trajectory...")
         try:
             waypoints, times = self.ps.getWaypoints(3)
@@ -234,7 +252,7 @@ class HPPSimple(Node):
         
         trajectory_msg = FollowJointTrajectory.Goal()
 
-        trajectory_msg.trajectory = generateMessage(self.ps,waypoints,times,2,3,self.arm_id)
+        trajectory_msg.trajectory = generateMessage(self.ps,waypoints,times,2,3,self.arm_id, inv=inv)
 
         self.controller.wait_for_server()
         goal_future = self.controller.send_goal_async(trajectory_msg)
@@ -264,6 +282,7 @@ class HPPSimple(Node):
         self.get_logger().info(f"Computing trajectory {self.q_init} to {self.q_goal}...")
 
         try:
+            self.traj_in_memory = True
             self.ps.solve()
         except Exception as e:
             self.get_logger().error(f"ERROR : {e}")

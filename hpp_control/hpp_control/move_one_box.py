@@ -91,11 +91,11 @@ q_goal = q_init[::]
 q_goal[0] = 1.5
 
 rank = robot.rankInConfiguration["box1/root_joint"]
-q_init[rank : rank + 3] = [-0.1, -0.1, 0.776]
+q_init[rank : rank + 3] = [-0.1, -0.1, 0.016]
 if ARM_ID=="fer":
-    q_goal[rank : rank + 3] = [-0.2, 0.1, 0.776]
+    q_goal[rank : rank + 3] = [-0.2, 0.1, 0.016]
 else :
-    q_goal[rank : rank + 3] = [-0.1, 0.2, 0.776]
+    q_goal[rank : rank + 3] = [-0.1, 0.2, 0.016]
 
 # # Put box in right orientation
 q_init[rank + 3 : rank + 7] = [0, -sqrt(2) / 2, 0, sqrt(2) / 2]

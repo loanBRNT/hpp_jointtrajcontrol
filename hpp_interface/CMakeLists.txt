@@ -15,6 +15,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/HppSendTrajectory.srv"
   "action/PoseSolve.action"
   "action/ConfigSolve.action"
+  "action/InvTrajSolve.action"
   DEPENDENCIES geometry_msgs
   DEPENDENCIES sensor_msgs
 )

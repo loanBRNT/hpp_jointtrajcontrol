@@ -126,8 +126,12 @@ factory.generate()
 
 cg.initialize()
 
-#pose = [0.28,  0.02597581,  0.02974924, 0, sqrt(2)/2, 0, sqrt(2)/2]
-pose = [0.16518063735004745, 0.21510428918140567, 0.09682727096276342, 0.46012483240326113, -0.8667602448933153, -0.1418178622618426, 0.1299981169934083]
+# pose = [0.13984079658985138, 0.0860714316368103, 0.05416488468647003, 0, sqrt(2)/2, 0, sqrt(2)/2]
+
+pose = [0.251874303817749, 0.2739804828166962, 0.06485912144184112, 
+-0.34917425900677534, -0.8949468121176025, 0.23254299630382577, 0.1518923803146453]
+
+
 robot.client.manipulation.robot.addHandle('pandas/support_link','moveTo',pose, 0.1, 6 * [True])
 print(pose)
 
@@ -148,14 +152,14 @@ constraintPreGrasp = ps.client.basic.problem.getConstraint('preGrasp')
 solverGrasp.add(constraintGrasp, 1)
 solverPreGrasp.add(constraintPreGrasp, 1)
 
-for i in range(500):
+for i in range(1000):
     q = robot.shootRandomConfig()
-    if i<=10:
+    if i<=50:
         q = q_init
     res, q1 = solverPreGrasp.apply(q)
     if res:
         find = False
-        for j in range(10):
+        for j in range(100):
             res, q2 = solverGrasp.apply(q1)
             if res:
                 find = True

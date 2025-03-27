@@ -32,7 +32,7 @@ def getRobotState():
 Send a trajectory directly to the controller. Do not wait for execution feedback.
 The functiion create and destroy a temp ROS2 node. Could be ressource intensive, fever the use of the sending_hpp node.
 '''
-def sendingTraj(ps, pathID, order, arm_id):
+def sendingTraj(ps, pathID, order, arm_id, inv=False):
     rclpy.init()
     node = Node('temp_client')
     client = ActionClient(node, FollowJointTrajectory, 
@@ -48,7 +48,7 @@ def sendingTraj(ps, pathID, order, arm_id):
         return False
 
     trajectory_msg = FollowJointTrajectory.Goal()
-    trajectory_msg.trajectory = generateMessage(ps,waypoints,times,order, pathID, arm_id)
+    trajectory_msg.trajectory = generateMessage(ps,waypoints,times,order, pathID, arm_id, inv=inv)
 
 
     client.wait_for_server()
@@ -58,33 +58,49 @@ def sendingTraj(ps, pathID, order, arm_id):
     rclpy.shutdown()
     return True
 
-
 '''
 Generate a JointTrajectory based on waypoints and times
 '''
-def generateMessage(ps, waypoints, times, order, pathID, arm_id, no_grip=True):
+def generateMessage(ps, waypoints, times, order, pathID, arm_id, no_grip=True, inv=False):
     trajectory = JointTrajectory()
     trajectory.points = []
-    l = len(times)
-    for i in range(l):
+
+    N = len(waypoints)-1
+    t_final = times[N]
+
+    if inv:
+        r = range(N,-1,-1)
+    else:
+        r = range(0, len(waypoints))
+
+    print(len(waypoints))
+    print(N)
+    print(r)
+
+    for i in r:
         sys.stdout.flush()
         wp = waypoints[i]
+        t = times[i]
         point = JointTrajectoryPoint()
         point.positions = extractRobotConfig(wp, no_grip, grip=wp[7])
         if order == 0:
             v = [0.0 for e in range(len(point.positions))]
             a = [0.0 for e in range(len(point.positions))]
         else:
-            v = ps.derivativeAtParam(pathID, 1, times[i])
+            v = ps.derivativeAtParam(pathID, 1, t)
             if order == 2:
-                a = ps.derivativeAtParam(pathID, 2, times[i])
+                a = ps.derivativeAtParam(pathID, 2, t)
             else:
                 a = [0.0 for e in range(len(point.positions))]
         point.velocities = extractRobotConfig(v, no_grip)
         point.accelerations = extractRobotConfig(a, no_grip)
-        point.time_from_start = Duration(sec=int(times[i]), nanosec=int((times[i] - int(times[i])) * 1e9))
+
+        t_traj = t if not inv else (t_final - t)
+        
+        point.time_from_start = Duration(sec=int(t_traj), nanosec=int((t_traj - int(t_traj)) * 1e9))
 
         trajectory.points.append(point)
+        print(point)
 
     trajectory.joint_names = [f'{arm_id}_joint1',f'{arm_id}_joint2',f'{arm_id}_joint3',f'{arm_id}_joint4',f'{arm_id}_joint5',f'{arm_id}_joint6',f'{arm_id}_joint7']
     if not no_grip:
