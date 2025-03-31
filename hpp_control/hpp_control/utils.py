@@ -10,6 +10,13 @@ from rclpy.action import ActionClient
 import sys
 from math import sqrt
 
+# def configIsInJointLimits(q, limit, eps=0.95):
+#     for i in in range(len(q)):
+#         if q[i] < limit[i][0] or q[i] > limit[i][1]:
+#             return False
+#     return True
+
+
 def getRobotState():
     rclpy.init()
     node = Node('temp_client')

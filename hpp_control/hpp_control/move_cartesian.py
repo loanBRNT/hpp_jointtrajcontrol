@@ -50,10 +50,11 @@ robot.client.manipulation.robot.addGripper\
 ps.addPathOptimizer('SimpleShortcut')
 ps.addPathOptimizer('RandomShortcut')
 ps.addPathOptimizer('SimpleTimeParameterization')
+# ps.addPathOptimizer('SplineGradientBased')
 
 ps.setParameter('SimpleTimeParameterization/order', 2)
-ps.setParameter('SimpleTimeParameterization/safety',0.3)
-ps.setParameter('SimpleTimeParameterization/maxAcceleration',0.2)
+ps.setParameter('SimpleTimeParameterization/safety',1.) #0.3
+ps.setParameter('SimpleTimeParameterization/maxAcceleration',1.) #0.4
 
 # if ps.loadPlugin('manipulation-spline-gradient-based.so') :
 #     ps.addPathOptimizer('SplineGradientBased_bezier1')
@@ -63,6 +64,8 @@ ps.createLockedJoint('locked_finger_1', f"pandas/{ARM_ID}_finger_joint1", [0.035
 ps.createLockedJoint('locked_finger_2', f"pandas/{ARM_ID}_finger_joint2", [0.035])
 ps.setConstantRightHandSide('locked_finger_1', True)
 ps.setConstantRightHandSide('locked_finger_2', True)
+
+ps.setTimeOutPathPlanning(10)
 
 # Set parameters.
 # robot.client.basic.problem.resetRoadmap ()
@@ -126,7 +129,7 @@ factory.generate()
 
 cg.initialize()
 
-pose = [0.8, 0.22, 0.3, 0, sqrt(2)/2, 0, sqrt(2)/2]
+pose = [1.1, 0.1, 0.2, 0, sqrt(2)/2, 0, sqrt(2)/2]
 
 robot.client.manipulation.robot.addHandle('pandas/support_link','moveTo',pose, 0.1, [True, True, True, False, True, True])
 print(pose)
@@ -150,7 +153,7 @@ solverPreGrasp.add(constraintPreGrasp, 1)
 
 for i in range(1000):
     q = robot.shootRandomConfig()
-    if i<=50:
+    if i<=500:
         q = q_init
     res, q1 = solverPreGrasp.apply(q)
     if res:
@@ -173,11 +176,11 @@ solverGrasp.deleteThis()
 ps.setInitialConfig(q_init)
 ps.addGoalConfig(q1)
 
-# ps.solve()
+ps.solve()
 
-# ps.setInitialConfig(q1)
-# ps.resetGoalConfigs()
-# ps.addGoalConfig(q2)
+ps.setInitialConfig(q1)
+ps.resetGoalConfigs()
+ps.addGoalConfig(q2)
 
-# ps.solve()
-# ps.concatenatePath(3, 7)
+ps.solve()
+ps.concatenatePath(3, 7)

@@ -97,6 +97,19 @@ class HPPSimple(Node):
         self.action_already_running = True
         return GoalResponse.ACCEPT  # Always accept for now
 
+    def verifyConfig(self, q, eps=0.98):
+        # joint_names = self.robot.getJointNames()
+        # for i in range(len(q)):
+        #     if "finger" in joint_names[i]:
+        #         continue 
+        #     l = self.robot.getJointBounds(joint_names[i])
+        #     limit = ( l[0] + abs(l[0])*(1-eps) , l[1] - abs(l[1])*(1-eps))
+        #     if q[i] < limit[0] or q[i] > limit[1]:
+        #         self.get_logger().warn(f"Refused pose because joint {joint_names[i]} with {q[i]} not in limit : {limit} for {l}")
+        #         return False
+        return True
+
+
     def setupHPP(self):
         newProblem()
 
@@ -179,6 +192,9 @@ class HPPSimple(Node):
     async def plan_ee_pose(self, goal_handle):
         self.setupHPP()
         self.pose_goal = goal_handle.request.pose
+        self.degrees = goal_handle.request.flags
+        if len(goal_handle.request.flags) != 6:
+            self.degrees = 6 * [True]
         q_init = goal_handle.request.q_init.position.tolist()
         self.q_init = self.setGripperValue(q_init)
         
@@ -191,7 +207,7 @@ class HPPSimple(Node):
                 self.pose_goal.orientation.z,
                 self.pose_goal.orientation.w
                 ]
-        res, self.q_goal, q2 = self.computeConfigFromPose(q_init, pose, pre_grasp=goal_handle.request.should_pre_grasp)
+        res, self.q_goal, q2 = self.computeConfigFromPose(q_init, pose, freedom=self.degrees, pre_grasp=goal_handle.request.should_pre_grasp)
 
         response = PoseSolve.Result()
         response.success = False
@@ -297,7 +313,7 @@ class HPPSimple(Node):
     '''
     Return a config with the end effector at the pose.
     '''
-    def computeConfigFromPose(self, q, pose, pre_grasp=False, nb_try=500, freedom=6*[True]):
+    def computeConfigFromPose(self, q, pose, pre_grasp=False, nb_try=1000, freedom=6*[True]):
         self.robot.client.manipulation.robot.addHandle('pandas/support_link','moveTo',pose, 0.1, freedom)
 
         self.cg.createGrasp('grasp','pandas/gripper','moveTo')
@@ -326,14 +342,16 @@ class HPPSimple(Node):
                     q_init = self.robot.shootRandomConfig()
                 res, q1 = solverPreGrasp.apply(q_init)
                 if res:
-                    find = False
-                    for j in range(10):
-                        res, q2 = solverGrasp.apply(q1)
-                        if res:
-                            find = True
+                    if self.verifyConfig(q1):
+                        find = False
+                        for j in range(100):
+                            res, q2 = solverGrasp.apply(q1)
+                            if res:
+                                if self.verifyConfig(q2):
+                                    find = True
+                                    break
+                        if find:
                             break
-                    if find:
-                        break
 
             solverPreGrasp.deleteThis()
 
@@ -343,7 +361,8 @@ class HPPSimple(Node):
                     q_init = self.robot.shootRandomConfig()
                 res, q1 = solverGrasp.apply(q_init)
                 if res:
-                    break
+                    if self.verifyConfig(q1):
+                        break
         
         p.deleteThis()
         solverGrasp.deleteThis()

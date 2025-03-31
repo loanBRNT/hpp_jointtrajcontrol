@@ -1,6 +1,7 @@
 sensor_msgs/JointState q_init
 geometry_msgs/Pose pose
 bool should_pre_grasp
+bool[] flags #Degree of liberty for the planner (6 bool values)
 ---
 bool success
 ---
