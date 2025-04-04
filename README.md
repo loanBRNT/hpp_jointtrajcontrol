@@ -10,6 +10,7 @@ Author : Loan Bernat. l.bernat@sileane.com
 
 | hpp_interface | hpp_control | Robot tested
 |-------|-------|-----|
+| 1.0.2 | 1.0.2 | fr3 |
 | 1.0.1 | 1.0.1 | fr3 |
 | 1.0.0 | 1.0.0 | fr3, fer* |
 
@@ -22,7 +23,9 @@ This repository contains two ROS2 packages :
 
 The repository also provides a **Dockerfile** which allow you to have a base image already tested to run those packages on a separated container from the rest of your code. See [Docker Integration](#docker-integration) for more details.
 
-⚠️ ***WARNING*** : These packages are thinked to be used with panda arm *fer* (franka emika research) or *fr3* (franka research 3) in the ADREAM environment. To use on differents robots or environment, you need to change loaded URDF and SRDF and modify the `extractRobotConfig` function in utils.py.
+⚠️ ***WARNING*** : These packages are thinked to be used with panda arm *fer* (Franka Emika Research) or *fr3* (Franka Research 3) in the ADREAM environment. To use on differents robots or environment, you need to change loaded URDF and SRDF and modify the `extractRobotConfig` function in utils.py.
+
+❗ ***INFORMATION*** : To control robot in real time, you need to have other ros2 node launched and a Joint Trajectory Controller activated.
 
 ## Usage
 
@@ -34,8 +37,8 @@ In the hpp_control package you have two nodes and two exemple scripts.
 
 - **move_cartesian.py** : Example of script to create an handle in the space and generate a configuration of the robot with the end-effector positioned at the handle.
 
-From these script (using interactive python `python3 -i **.py`) you can aslo acess function from **utils.py**. Those functions allow you to rapidly test and debug your script without the need to use a separated node.
-- **getRobotState()** connect to the robot and return its configuration
+From these script (using interactive python `python3 -i **.py`) you can aslo acess functions from **utils.py**. Those functions allow you to rapidly test and debug your script without the need to use a separated node. (Your simulation or real robot launch need to running and using Joint Trajectory Controller from ros2_control)
+- **getRobotState()** connect to the robot and return its configuration. 
 - **sendingTraj(problesolver, pathID, derivative, ARM_ID)** send the path corresponding to the pathID to a ARM_ID robot with only position (derivative=0), position + speed (derivative=1), position + speed + acceleration (derivative=2) 
 
 ### ROS2 Nodes
