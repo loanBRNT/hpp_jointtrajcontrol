@@ -1,8 +1,9 @@
 # HPP ROS2 CONTROL
 ![Docker](https://img.shields.io/badge/Docker-Supported-blue)
-![ROS2 Jazzy](https://img.shields.io/badge/ROS2-Jazzy-blue)
-![ROS2 Humble](https://img.shields.io/badge/ROS2-Humble-blue)
 
+![ROS2 Jazzy](https://img.shields.io/badge/ROS2-Jazzy%2C%20Humble-blue)
+
+![Ubuntu version](https://img.shields.io/badge/Ubuntu-22.05%2C%2024.04-blue)
 
 Author : Loan Bernat. l.bernat@sileane.com
 
@@ -31,29 +32,40 @@ The repository also provides a **Dockerfile** which allow you to have a base ima
 
 In the hpp_control package you have two nodes and two exemple scripts.
 
-### Examples
+### HPP Scripts
 
 - **move_one_box.py** : Exemple of script to create a HPP problem and solve it.
 
 - **move_cartesian.py** : Example of script to create an handle in the space and generate a configuration of the robot with the end-effector positioned at the handle.
 
-From these script (using interactive python `python3 -i **.py`) you can aslo acess functions from **utils.py**. Those functions allow you to rapidly test and debug your script without the need to use a separated node. (Your simulation or real robot launch need to running and using Joint Trajectory Controller from ros2_control)
+From these script (using interactive python `python3 -i **.py`) you can also acess functions from **utils.py**. Those functions allow you to rapidly test and debug your script without the need to use a separated node. (Your simulation or real robot launch need to running and using Joint Trajectory Controller from ros2_control)
 - **getRobotState()** connect to the robot and return its configuration. 
-- **sendingTraj(problesolver, pathID, derivative, ARM_ID)** send the path corresponding to the pathID to a ARM_ID robot with only position (derivative=0), position + speed (derivative=1), position + speed + acceleration (derivative=2) 
+- **sendingTraj(problesolver, pathID, derivative, ARM_ID)** send the path corresponding to the pathID to a ARM_ID robot with only position (derivative=0), position + speed (derivative=1), position + speed + acceleration (derivative=2)
+
+❗ ***INFORMATION*** : For more documentation on HPP's function and script, please refer to the [official website](https://humanoid-path-planner.github.io/hpp-doc/).
 
 ### ROS2 Nodes
 
 Both nodes take a ros parameter : arm_id ; Which correspond to the type of panda you are using (fer or fr3).
+
+**solving_hpp** : Standalone node to plan a trajecotry with HPP. Can take a configuration or an end-effector pose in input.
+
+You can interact using ros2 actions. Thes actions will automatically send the trajectory to the Joint Trajectory Controller at this topic `/joint_trajectory_controller/follow_joint_trajectory` and will wait for the end of the exucution before ending :
+
+
+| ros2 action | hpp_interface type | Description
+|-------|-------|-----|
+| `/hpp_node/plan_trajectory_to_q_config` | `ConfigSolve` | Plan Trajectory from q_init to q_goal |
+| `/hpp_node/plan_trajectory_to_ee_pose` | `PoseSolve` | Plan trajectory from q_init to a 7DOF pose |
+| `/hpp_node/inv_trajectory` | `InvTrajSolve` | Plan trajectory to return to the previous Qinit |
+
+If you don't want to wait the end of the trajectory, you can simply publish the desired pose on the topic `/hpp_node/fast_plan_to_q` to automatically calcul and send the trajectory from the current position of the robot to the given configuration.
 
 **sending_hpp** : Sending an already calculated trajectory to the ros2 controllers.
 
 You can interact with the node using the `/hpp_node/sendTrajectory` service based on the `HppSendTrajectory` service type.
 
 To use this node, you need to have a corbaserver running with trajectory already solved. For example, you can use the node to send the trajectory computed from **move_one_box.py**
-
-**solving_hpp** : Standalone node to plan a trajecotry with HPP. Can take a configuration or an end-effector pose in input.
-
-You can interact using ros2 actions `ConfigSolve` or `PoseSolve` if you want to wait the end of the trajectory. Or you can simply publish the desired pose on the topic `/hpp_node/fast_plan_to_q` to automatically calcul and send the trajectory.
 
 ## Docker Integration
 
