@@ -22,10 +22,20 @@ from ament_index_python.packages import get_package_share_directory
 # If you want to make a lot of call to these function, please considerer using sending_hpp node instead.
 from utils import getRobotState, sendingTraj
 
+def move_box(q_init, q_goal):
+    q_init[0:7]=getRobotState().position
+    ps.setInitialConfig(q_init)
+    ps.resetGoalConfigs()
+    ps.addGoalConfig(q_goal)
+    ps.solve()
+    pid = ps.numberPaths() - 1
+    if pid < 0:
+        raise RuntimeError("Failed to plan a path")
+    sendingTraj(ps,pid,1,ARM_ID)
 
 BOX_RANGE = [-2.65, -4.4, -2.15, -3.75] #TOP LEFT BOTTOM RIGHT
 
-ARM_ID = 'fr3'
+ARM_ID = 'fer'
 
 class Box:
     rootJointType = "freeflyer"
@@ -91,11 +101,11 @@ q_goal = q_init[::]
 q_goal[0] = 1.5
 
 rank = robot.rankInConfiguration["box1/root_joint"]
-q_init[rank : rank + 3] = [-0.1, -0.1, 0.016]
+q_init[rank : rank + 3] = [-0.1, -0.1, 0.776]
 if ARM_ID=="fer":
-    q_goal[rank : rank + 3] = [-0.2, 0.1, 0.016]
+    q_goal[rank : rank + 3] = [-0.2, 0.1, 0.776]
 else :
-    q_goal[rank : rank + 3] = [-0.1, 0.2, 0.016]
+    q_goal[rank : rank + 3] = [-0.1, 0.2, 0.776]
 
 # # Put box in right orientation
 q_init[rank + 3 : rank + 7] = [0, -sqrt(2) / 2, 0, sqrt(2) / 2]
