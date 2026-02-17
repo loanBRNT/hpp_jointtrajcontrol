@@ -16,6 +16,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "action/PoseSolve.action"
   "action/ConfigSolve.action"
   "action/InvTrajSolve.action"
+  "action/TestGrasp.action"
   DEPENDENCIES geometry_msgs
   DEPENDENCIES sensor_msgs
 )

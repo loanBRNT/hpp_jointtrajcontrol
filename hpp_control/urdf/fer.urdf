@@ -114,29 +114,6 @@
 		</geometry>
 		</collision>
 	</link>
-	<!-- Wrap panda1 robot into a box shaped obstacle -->
-	<link name="panda1_box">
-		<inertial>
-		<mass value="100"/>
-		<origin xyz="0 0 0"/>
-		<inertia ixx="25" ixy="0" ixz="0" iyy="25" iyz="0" izz="25"/>
-		</inertial>
-		<collision>
-		<origin xyz="0 0 0"/>
-		<geometry>
-			<box size="0.803 0.44 0.80"/>
-		</geometry>
-		</collision>
-		<visual>
-		<origin xyz="0 0 0"/>
-		<geometry>
-			<box size="0.803 0.44 0.80"/>
-		</geometry>
-		<material name="lightGrey">
-			<color rgba="0.9 0.9 0.9 0.5"/>
-		</material>
-		</visual>
-	</link>
 	<!-- Gazebo requires a joint to a link called "world" for statically mounted robots -->
 	<link name="world"/>
 	<joint name="world_joint" type="fixed">
@@ -163,11 +140,6 @@
 		<origin xyz="1.40 0.96 0"/>
 		<parent link="world"/>
 		<child link="wall_link_3"/>
-	</joint>
-	<joint name="panda1_box_joint" type="fixed">
-		<origin xyz="0.45 -0.18 1.17"/>
-		<parent link="world"/>
-		<child link="panda1_box"/>
 	</joint>
 	<link name="fer_link0">
 		<visual name="fer_link0_visual">

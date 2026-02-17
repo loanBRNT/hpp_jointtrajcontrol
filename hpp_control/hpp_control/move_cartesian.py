@@ -13,6 +13,7 @@ from hpp.corbaserver.manipulation import (
     ProblemSolver,
     Rule,
 )
+from hpp.gepetto import displayGripper, displayHandle
 from hpp.corbaserver.manipulation.pr2 import Robot
 from hpp.gepetto import PathPlayer  # noqa: F401
 from hpp.gepetto.manipulation import ViewerFactory
@@ -22,9 +23,7 @@ from ament_index_python.packages import get_package_share_directory
 # If you want to make a lot of call to these function, please considerer using sending_hpp node instead.
 from utils import getRobotState, sendingTraj
 
-
-
-ARM_ID = 'fr3'
+ARM_ID = 'fer'
 
 
 loadServerPlugin("corbaserver", "manipulation-corba.so")
@@ -76,12 +75,51 @@ ps.setTimeOutPathPlanning(10)
 q_init = robot.getCurrentConfig()
 q_init[0:9] = [ 0.0011392894365677708, -0.785233599521887, 0.0006221224673022915, -2.373483112932502, 
                 0.003281429835572088, 1.559707000546985, 0.7660253966665929, 0.035, 0.035]
+# q_init[:7] = getRobotState().position
 q_goal = q_init[::]
 q_goal[0] = 1.5
 
 
 
-# Create the constraints.
+# CONTAINER 1
+# ros2 topic pub --once /hpp_node/fast_plan_to_q sensor_msgs/msg/JointState "
+# header:
+#   stamp:
+#     sec: 0
+#     nanosec: 0
+#   frame_id: ''
+# name: []
+# position:
+#   - -1.018597086906433
+#   - 0.7193910523852285
+#   - -0.6307928767789874
+#   - -1.5237626632556578
+#   - 0.41482799582739727
+#   - 2.1290345202816856
+#   - -0.9809837483177932
+  
+  
+  
+# velocity: []
+# effort: []
+# "
+
+# CONTAINER 2
+# ros2 topic pub --once /hpp_node/fast_plan_to_q sensor_msgs/msg/JointState "
+# header:
+#   stamp:
+#     sec: 0
+#     nanosec: 0
+#   frame_id: ''
+# name: []
+# position:
+#   - 2.70
+#   - -0.2577596256063695
+#   - -1.5398555701170953
+#   - -2.4187949815019714
+#   - -0.4024609786919264
+#   - 2.2713667462325122
+#   - -0.8304286451331443
 
 
 
@@ -129,9 +167,11 @@ factory.generate()
 
 cg.initialize()
 
-pose = [1.1, 0.1, 0.2, 0, sqrt(2)/2, 0, sqrt(2)/2]
+pose = [0.6, 0.5, 1, 0, sqrt(2)/2, 0, sqrt(2)/2]
+pose = [-0.04, -0.0067, 0.944, 0.11265219600313102, 0.6136445980076074, -0.04318254366743604, 0.78031087266157645]
+q5 = [-1.3264918647926258, 1.6746599999999998, 1.875746167904203, -1.7537094897683982, -1.6126423928878681, 1.2425631072395829, -1.8965544772046639, 0.015060742839733484, 0.0039385689627093115]
 
-robot.client.manipulation.robot.addHandle('pandas/support_link','moveTo',pose, 0.1, [True, True, True, False, True, True])
+robot.client.manipulation.robot.addHandle('pandas/support_link','moveTo',pose, 0.1, [True, True, True, True, True, True])
 print(pose)
 
 #robot.client.manipulation.robot.setHandlePositionInJoint('moveTo',pose)

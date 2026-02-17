@@ -4,17 +4,20 @@ from hpp.corbaserver.manipulation import Robot
 from hpp.corbaserver import loadServerPlugin, shrinkJointRange
 from hpp.corbaserver.manipulation import Robot, \
     newProblem, ProblemSolver, ConstraintGraph, \
-    ConstraintGraphFactory
-
+    ConstraintGraphFactory, Constraints
+from hpp.gepetto.manipulation import ViewerFactory
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient, ActionServer, GoalResponse
+from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
 
 from control_msgs.action import FollowJointTrajectory
 from control_msgs.srv import QueryTrajectoryState
 from sensor_msgs.msg import JointState
+from geometry_msgs.msg import Pose
 from builtin_interfaces.msg import Time
-from hpp_interface.action import PoseSolve, ConfigSolve, InvTrajSolve
+from hpp_interface.action import PoseSolve, ConfigSolve, InvTrajSolve, TestGrasp
 
 from ament_index_python.packages import get_package_share_directory
 import os
@@ -23,6 +26,28 @@ from .utils import generateMessage
 
 # Example of commande
 # ros2 topic pub /hpp_node/fast_plan_to_q sensor_msgs/msg/JointState "{position: [0.0, 0.5, 0.4, -1.0, 0.0, 1.0, 0.0, 1.0, 1.0]}" --once
+
+def pose_to_list(p):
+    return [
+        p.position.x,
+        p.position.y,
+        p.position.z,
+        p.orientation.x,
+        p.orientation.y,
+        p.orientation.z,
+        p.orientation.w,
+    ]
+    
+def list_to_pose(lst):
+    p = Pose()
+    p.position.x = lst[0]
+    p.position.y = lst[1]
+    p.position.z = lst[2]
+    p.orientation.x = lst[3]
+    p.orientation.y = lst[4]
+    p.orientation.z = lst[5]
+    p.orientation.w = lst[6]
+    return p
 
 class HPPSimple(Node):
     '''
@@ -53,6 +78,8 @@ class HPPSimple(Node):
         if self.arm_id not in self.SUPPORTED_ROBOTS:
             raise RuntimeError(f"ERROR : Bad argument.\nRobot {self.arm_id} is not supported. Avalaible robots {self.SUPPORTED_ROBOTS}")
 
+        self.joint_names = [f"{self.arm_id}_joint{i}" for i in range(1,8)]
+
         p_u = os.path.join(get_package_share_directory("hpp_control"),"urdf",f"{self.arm_id}.urdf")
         p_s = os.path.join(get_package_share_directory("hpp_control"),"srdf",f"{self.arm_id}.srdf")
 
@@ -73,14 +100,43 @@ class HPPSimple(Node):
                                    '/joint_trajectory_controller/follow_joint_trajectory')
         
         # Receive the goal config by the user
-        self.action_q_pose = ActionServer(self, ConfigSolve, '/hpp_node/plan_trajectory_to_q_config', 
-                                          execute_callback=self.plan_q_config, goal_callback=self.goal_callback)
+        self.cb_group = ReentrantCallbackGroup()
 
-        self.action_ee_pose = ActionServer(self, PoseSolve, "/hpp_node/plan_trajectory_to_ee_pose",
-                                           execute_callback=self.plan_ee_pose, goal_callback=self.goal_callback)
-        
-        self.action_inv_last_traj = ActionServer(self, InvTrajSolve, "/hpp_node/inv_trajectory",
-                                           execute_callback=self.inv_last_traj, goal_callback=self.goal_callback)
+        self.action_ee_pose = ActionServer(
+            self, 
+            PoseSolve, 
+            "/hpp_node/plan_trajectory_to_ee_pose",
+            execute_callback=self.plan_ee_pose,
+            goal_callback=self.goal_callback,
+            callback_group=self.cb_group
+        )
+
+        self.action_grasp = ActionServer(
+            self, 
+            TestGrasp, 
+            "/hpp_node/check_grasps",
+            execute_callback=self.checkGrasps,
+            goal_callback=self.goal_callback,
+            callback_group=self.cb_group
+        )
+
+        self.action_q_pose = ActionServer(
+            self, 
+            ConfigSolve, 
+            '/hpp_node/plan_trajectory_to_q_config',
+            execute_callback=self.plan_q_config,
+            goal_callback=self.goal_callback,
+            callback_group=self.cb_group
+        )
+
+        self.action_inv_last_traj = ActionServer(
+            self, 
+            InvTrajSolve, 
+            "/hpp_node/inv_trajectory",
+            execute_callback=self.inv_last_traj,
+            goal_callback=self.goal_callback,
+            callback_group=self.cb_group
+        )
         
         self.action_already_running = False
 
@@ -95,6 +151,7 @@ class HPPSimple(Node):
             self.get_logger().info("New request received, but a node is already running.")
             return GoalResponse.REJECT
         self.action_already_running = True
+        self.get_logger().info("GOAL ACCEPTED")
         return GoalResponse.ACCEPT  # Always accept for now
 
     def verifyConfig(self, q, eps=0.98):
@@ -119,6 +176,8 @@ class HPPSimple(Node):
         self.robot.setRootJointPosition("pandas",[0,0,0.4,0,0,0,1]) # A changer selon l'env
         shrinkJointRange(self.robot, [f'pandas/{self.arm_id}_joint{i}' for i in range(1,8)],0.95)
         self.ps = ProblemSolver(self.robot)
+        # self.ps.loadPlugin("spline-gradient-based.so")
+        self.ps.setMaxIterPathPlanning(2000)
 
         self.robot.client.manipulation.robot.addGripper\
             (f"pandas/{self.arm_id}_hand_tcp", 'pandas/gripper', [0,0,0,sqrt(2)/2,0,sqrt(2)/2,0], 0.05)
@@ -129,34 +188,33 @@ class HPPSimple(Node):
 
         self.ps.createLockedJoint('locked_finger_1', f'pandas/{self.arm_id}_finger_joint1', [0.035])
         self.ps.createLockedJoint('locked_finger_2', f'pandas/{self.arm_id}_finger_joint2', [0.035])
-        self.ps.setConstantRightHandSide('locked_finger_1', True)
-        self.ps.setConstantRightHandSide('locked_finger_2', True)
+        self.ps.setConstantRightHandSide('locked_finger_1', False)
+        self.ps.setConstantRightHandSide('locked_finger_2', False)
 
         
         self.ps.addPathOptimizer('SimpleShortcut')
         self.ps.addPathOptimizer('RandomShortcut')
+        # self.ps.addPathOptimizer("SplineGradientBased_bezier3")
         self.ps.addPathOptimizer('SimpleTimeParameterization')
         # If you add another optimizer change the path id in the solve() --> getWaypoints().
 
         self.ps.setParameter('SimpleTimeParameterization/order', 2)
-        self.ps.setParameter('SimpleTimeParameterization/safety',0.5)
-        self.ps.setParameter('SimpleTimeParameterization/maxAcceleration',0.5)
+        self.ps.setParameter('SimpleTimeParameterization/safety',0.8)
+        self.ps.setParameter('SimpleTimeParameterization/maxAcceleration',0.8)
         
 
         self.cg = ConstraintGraph(self.robot,"manipulation") #Une fonction pour reset les graphes
         factory = ConstraintGraphFactory(self.cg)
         factory.setGrippers(grippers)
         factory.generate()
-
+        self.cg.addConstraints(constraints=Constraints(numConstraints=["locked_finger_1","locked_finger_2"]))
         self.cg.initialize()
+
 
     def askQinit(self, msg):
         q_goal = msg.position.tolist()
         self.hpp_joint_names = msg.name
 
-        # if len(q_goal) != len(self.hpp_joint_names):
-        #     self.get_logger().error(f"Joint names ({len(self.hpp_joint_names)}) and position ({len(q_goal)}) doesn't have the same lenght !")
-        #     return
 
         self.q_goal = self.setGripperValue(q_goal)
 
@@ -207,6 +265,10 @@ class HPPSimple(Node):
                 self.pose_goal.orientation.z,
                 self.pose_goal.orientation.w
                 ]
+
+        self.get_logger().info(f"pose: {pose}")
+        self.get_logger().info(f"q_init : {q_init}")
+
         res, self.q_goal, q2 = self.computeConfigFromPose(q_init, pose, freedom=self.degrees, pre_grasp=goal_handle.request.should_pre_grasp)
 
         response = PoseSolve.Result()
@@ -226,6 +288,9 @@ class HPPSimple(Node):
                         response.success = await self.sendTrajectory()
         else:
             self.get_logger().error("No config founded")
+            self.action_already_running = False
+            goal_handle.abort()
+            return response
 
 
         self.action_already_running = False
@@ -233,15 +298,29 @@ class HPPSimple(Node):
 
         return response
 
+    def jointstate_to_ordered_positions(
+        self,
+        joint_state
+    ):
+        name_to_pos = dict(zip(joint_state.name, joint_state.position))
+
+        ordered_positions = []
+        for name in self.joint_names:
+            if name not in name_to_pos:
+                raise KeyError(f"Joint '{name}' not found in JointState")
+            ordered_positions.append(name_to_pos[name])
+
+        return ordered_positions
+
     async def plan_q_config(self, goal_handle):
         self.setupHPP()
-        q_init = goal_handle.request.q_init.position.tolist()
-        q_goal = goal_handle.request.q_goal.position.tolist()
+        q_init = self.jointstate_to_ordered_positions(goal_handle.request.q_init)
+        q_goal = self.jointstate_to_ordered_positions(goal_handle.request.q_goal)
 
         self.q_goal = self.setGripperValue(q_goal)
         self.q_init = self.setGripperValue(q_init)
 
-        response = PoseSolve.Result()
+        response = ConfigSolve.Result()
         
         response.success = await self.solve()
 
@@ -249,6 +328,55 @@ class HPPSimple(Node):
         goal_handle.succeed()
 
         return response
+
+    async def checkGrasps(self, goal_handle):
+        self.setupHPP()
+        valid_grasps = self.checkValidGrasp(goal_handle.request.grasps, goal_handle.request.q_init.position.tolist())
+
+        response = TestGrasp.Result()
+        response.valid_grasps = [list_to_pose(p) for p in valid_grasps]
+        self.action_already_running = False
+        goal_handle.succeed()
+        return response
+
+
+    def checkValidGrasp(self, grasp_list, q_init, nb_try=1000):
+        self.robot.client.manipulation.robot.addHandle('pandas/support_link','moveTo',[0,0,0,0,0,0,1], 0.1, 6*[True])
+        
+        p = self.ps.client.basic.problem.getProblem()
+        r = p.robot()
+        
+        seuil = nb_try // 10
+        out = []
+        for pose_msg in grasp_list:
+            q = q_init.copy()
+            pose = pose_to_list(pose_msg)
+            self.get_logger().info(str(pose))
+            self.robot.client.manipulation.robot.setHandlePositionInJoint("moveTo", pose)
+            self.cg.createGrasp('grasp','pandas/gripper','moveTo')
+            solverGrasp = self.ps.client.basic.problem.createConfigProjector(r,'graspSolver', 1e-6, 40)
+            constraintGrasp = self.ps.client.basic.problem.getConstraint('grasp')
+            solverGrasp.add(constraintGrasp, 1)
+            for i in range(nb_try):
+                if i >= seuil:
+                    q = self.robot.shootRandomConfig()
+                res, q1 = solverGrasp.apply(q)
+                
+                if res:
+                    if self.verifyConfig(q1):
+                        self.get_logger().info("Grasp valid")
+                        out.append(pose)
+                        break
+            else:
+                self.get_logger().warn("Grasp Invalid")
+
+            if len(out) > 4:
+                break
+        
+        p.deleteThis()
+        solverGrasp.deleteThis()
+
+        return out
 
     async def getQfromMsg(self, msg):
         q_init = msg.result().position.tolist()
@@ -289,6 +417,9 @@ class HPPSimple(Node):
     async def solve(self,send=True):
         if self.q_goal == None or self.q_init == None:
             self.get_logger().error("ERROR : Q_GOAL or Q_INIT is none")
+
+        self.q_init = self.setGripperValue(self.q_init)
+        self.q_goal = self.setGripperValue(self.q_goal)
 
         self.ps.resetGoalConfigs()
         self.ps.setInitialConfig(self.q_init)
@@ -352,6 +483,8 @@ class HPPSimple(Node):
                                     break
                         if find:
                             break
+                else:
+                    self.get_logger().info(f"computeConfigFromPose : fail to project at it {i}")
 
             solverPreGrasp.deleteThis()
 
@@ -421,16 +554,20 @@ class Environement(object):
     urdfSuffix = ""
     srdfSuffix = ""
 
-
 def main(args=None):
     rclpy.init(args=args)
 
-    hpp = HPPSimple()
-    while rclpy.ok():
-        rclpy.spin_once(hpp)  # Non-blocking spin
+    node = HPPSimple()
 
-    hpp.destroy_node()
-    rclpy.shutdown()
+    executor = MultiThreadedExecutor(num_threads=4)
+    executor.add_node(node)
+
+    try:
+        executor.spin()
+    finally:
+        executor.shutdown()
+        node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':

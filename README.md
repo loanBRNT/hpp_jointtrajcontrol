@@ -11,6 +11,7 @@ Author : Loan Bernat. l.bernat@sileane.com
 
 | hpp_interface | hpp_control | Robot tested
 |-------|-------|-----|
+| 1.1.0 | 1.1.0 | fr3, fer |
 | 1.0.2 | 1.0.2 | fr3 |
 | 1.0.1 | 1.0.1 | fr3 |
 | 1.0.0 | 1.0.0 | fr3, fer* |

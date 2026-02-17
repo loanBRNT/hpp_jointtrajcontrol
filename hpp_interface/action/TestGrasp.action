@@ -1,0 +1,6 @@
+geometry_msgs/Pose[] grasps
+sensor_msgs/JointState q_init
+---
+geometry_msgs/Pose[] valid_grasps
+---
+string status
